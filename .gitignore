@@ -1,3 +1,80 @@
-node_modules
-dist
-.idea
+### Gradle ###
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Spring Boot ###
+HELP.md
+.attach*
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+.kotlin/
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### VS Code ###
+.vscode/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### Node / Frontend ###
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-e2e/
+frontend/dist-prerender/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/test-results
+
+### Generated — frontend embedded in Spring Boot ###
+backend/src/main/resources/static/
+backend/src/main/resources/db/local/
+
+### Environment files ###
+.env
+.env.local
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+# would be ignored for a team-project since it's per user only
+#.claude/settings.local.json
+/.claude/tmp/
+
+# Terraform (infra/terraform)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+backend.hcl
+/test-results/
+
+# Local Sentry credentials — never commit
+resources/sentry/
+
+# Local Cloudflare credentials — never commit
+resources/cloudflare/
+
+# Local Resend credentials — never commit
+/resources/resend/
