@@ -1,0 +1,105 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/**)",
+      "Read(//workspace/goetti-recruitment/**)",
+      "Edit(/**)",
+      "Edit(//workspace/goetti-recruitment/**)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git push -u origin *)",
+      "Bash(git push origin HEAD)",
+      "Bash(gh *)",
+      "Bash(sed --sandbox *)",
+      "Bash(grep *)",
+      "Bash(find /workspace/goetti-recruitment/**)",
+      "Bash(cat /workspace/goetti-recruitment/**)",
+      "Bash(ls /workspace/goetti-recruitment/*)",
+      "Bash(* :backend:compileKotlin *)",
+      "Bash(* :backend:test *)",
+      "Bash(* :backend:build *)",
+      "Bash(GRADLE=*)",
+      "Bash(npm --prefix /workspace/goetti-recruitment/frontend *)",
+      "Bash(/workspace/goetti-recruitment/frontend/node_modules/.bin/vite *)",
+      "Bash(node_modules/.bin/tsc -b)",
+      "Read(//home/lukas/.gradle/**)",
+      "Edit(//home/lukas/.gradle/**)",
+      "Bash(//home/lukas/.gradle/wrapper/dists/*/bin/gradle *)"
+    ],
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(rm -rf *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git branch -D *)"
+    ],
+    "defaultMode": "auto",
+    "disableBypassPermissionsMode": "disable",
+    "additionalDirectories": [
+      "/home/lukas/.gradle"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /workspace/goetti-recruitment && python3 /workspace/goetti-recruitment/.claude/hooks/check_test_changes.py",
+            "if": "false"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /workspace/goetti-recruitment && bash /workspace/goetti-recruitment/.claude/hooks/verify-compilation.sh --commit"
+          },
+          {
+            "type": "command",
+            "command": "cd /workspace/goetti-recruitment && bash /workspace/goetti-recruitment/.claude/hooks/verify-lint.sh --commit"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /workspace/goetti-recruitment/.claude/hooks/allow_project_paths.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /workspace/goetti-recruitment && bash /workspace/goetti-recruitment/.claude/hooks/verify-compilation.sh"
+          },
+          {
+            "type": "command",
+            "command": "cd /workspace/goetti-recruitment && bash /workspace/goetti-recruitment/.claude/hooks/verify-lint.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  }
+}

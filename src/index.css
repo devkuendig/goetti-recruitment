@@ -1,0 +1,21 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #111;
+}
+
+.screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.film-frame {
+  width: min(100%, calc((100vh - 3rem) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+}
