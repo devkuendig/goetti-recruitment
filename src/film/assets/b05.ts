@@ -8,6 +8,15 @@ import {
   type MeshToonMaterial,
 } from 'three';
 import { box, cylinder, toon } from '../engine/build';
+import {
+  createWheel,
+  frontPlate,
+  profileBody,
+  sideMirror,
+  slab,
+  wheelArch,
+  type ProfilePoint,
+} from './carParts';
 
 export interface B05 {
   root: Group;
@@ -15,62 +24,113 @@ export interface B05 {
   sparkles: Sprite[];
 }
 
+/** Side silhouette: short nose, steep windshield, roof sloping into a fastback tail. */
+const BODY_PROFILE: ProfilePoint[] = [
+  [-2.15, 0.28],
+  [2.15, 0.28],
+  [2.2, 0.62],
+  [2.16, 0.95],
+  [2.0, 1.05],
+  [1.25, 1.46],
+  [0.1, 1.55],
+  [-0.6, 1.5],
+  [-1.35, 1.03],
+  [-2.08, 0.9],
+  [-2.2, 0.62],
+];
+const SIDE_GLASS_PROFILE: ProfilePoint[] = [
+  [-1.22, 1.06],
+  [1.85, 1.03],
+  [1.2, 1.4],
+  [0.1, 1.47],
+  [-0.55, 1.43],
+];
+const BODY_WIDTH = 1.85;
+const BEVEL = 0.06;
+const SIDE_Z = BODY_WIDTH / 2;
+
 /**
- * Leapmotor B05 stand-in built from primitives: low hatchback, full-width light bars.
- * Faces -x. Replace the body of this function with a glTF loader to swap the model.
+ * Leapmotor B05 stand-in built from primitives: sporty fastback, full-width light bars,
+ * black panoramic roof, flush door handles. Faces -x.
+ * Replace the body of this function with a glTF loader to swap the model.
  */
 export function createB05(paint: ColorRepresentation): B05 {
   const root = new Group();
   const paintMaterial = toon(paint);
   const glass = toon(0x1d2a3a);
   const trim = toon(0x1b1b1f);
+  const silver = toon(0xd8dde3);
 
-  const body = box(4.4, 0.7, 1.85, paintMaterial);
-  body.position.y = 0.6;
-  const hood = box(1.1, 0.18, 1.8, paintMaterial);
-  hood.position.set(-1.6, 0.98, 0);
-  const cabin = box(2.5, 0.62, 1.66, glass);
-  cabin.position.set(0.25, 1.24, 0);
-  const roof = box(2.2, 0.08, 1.6, paintMaterial);
-  roof.position.set(0.3, 1.58, 0);
-  const skirt = box(4.42, 0.16, 1.87, trim);
+  root.add(profileBody(BODY_PROFILE, BODY_WIDTH, paintMaterial, BEVEL));
+  root.add(profileBody(SIDE_GLASS_PROFILE, BODY_WIDTH + 0.02, glass, 0));
+  root.add(slab([-1.35, 1.03], [-0.6, 1.5], 1.62, 0.03, glass, BEVEL + 0.01));
+  root.add(slab([1.25, 1.46], [2.0, 1.05], 1.5, 0.03, glass, BEVEL + 0.01));
+  root.add(slab([-0.6, 1.5], [0.1, 1.55], 1.55, 0.02, trim, BEVEL + 0.01));
+  root.add(slab([0.1, 1.55], [1.25, 1.46], 1.55, 0.02, trim, BEVEL + 0.01));
+
+  const bPillar = box(0.1, 0.42, BODY_WIDTH + 0.03, trim);
+  bPillar.position.set(0.35, 1.25, 0);
+  const skirt = box(4.2, 0.14, BODY_WIDTH + 0.02, trim);
   skirt.position.y = 0.3;
-  root.add(body, hood, cabin, roof, skirt);
+  root.add(bPillar, skirt);
+  for (const seamX of [-1.0, 0.38, 1.6]) {
+    const seam = box(0.012, 0.6, BODY_WIDTH + 0.015, trim);
+    seam.position.set(seamX, 0.68, 0);
+    root.add(seam);
+  }
+  for (const handleX of [-0.3, 0.95]) {
+    const handle = box(0.2, 0.03, BODY_WIDTH + 0.02, silver);
+    handle.position.set(handleX, 0.94, 0);
+    root.add(handle);
+  }
+  for (const side of [1, -1] as const) {
+    const mirror = sideMirror(paintMaterial, side);
+    mirror.position.set(-1.05, 1.1, side * (SIDE_Z - 0.05));
+    root.add(mirror);
+  }
 
-  const lightBarFront = box(0.04, 0.06, 1.6, toon(0xffffff, 0xddeeff));
-  lightBarFront.position.set(-2.21, 0.86, 0);
-  const lightBarRear = box(0.04, 0.08, 1.7, toon(0xff3344, 0x880011));
-  lightBarRear.position.set(2.21, 0.86, 0);
-  root.add(lightBarFront, lightBarRear);
+  const lightBarFront = box(0.04, 0.045, 1.62, toon(0xffffff, 0xddeeff));
+  lightBarFront.position.set(-2.18, 0.84, 0);
+  const lowerGrille = box(0.06, 0.2, 1.2, trim);
+  lowerGrille.position.set(-2.25, 0.46, 0);
+  const plate = frontPlate('ZH·123 456');
+  plate.position.set(-2.29, 0.47, 0);
+  const logo = box(0.03, 0.05, 0.16, silver);
+  logo.position.set(-2.22, 0.74, 0);
+  const lightBarRear = box(0.04, 0.07, 1.7, toon(0xff3344, 0x880011));
+  lightBarRear.position.set(2.26, 0.88, 0);
+  const sharkFin = cylinder(0.01, 0.06, 0.1, trim);
+  sharkFin.scale.set(1.8, 1, 0.5);
+  sharkFin.position.set(1.0, 1.58, 0);
+  root.add(lightBarFront, lowerGrille, plate, logo, lightBarRear, sharkFin);
 
   for (const x of [-1.4, 1.4]) {
-    for (const z of [-0.85, 0.85]) {
-      const tire = cylinder(0.36, 0.36, 0.26, trim);
-      tire.rotation.x = Math.PI / 2;
-      tire.position.set(x, 0.36, z);
-      const rim = cylinder(0.22, 0.22, 0.27, toon(0xd8dde3));
-      rim.rotation.x = Math.PI / 2;
-      rim.position.copy(tire.position);
-      root.add(tire, rim);
+    for (const side of [1, -1]) {
+      const wheel = createWheel({ radius: 0.36, width: 0.24, rimColor: 0xd8dde3, spokes: 5 });
+      wheel.position.set(x, 0.36, side * (SIDE_Z - 0.1));
+      const arch = wheelArch(0.42, side * (SIDE_Z + 0.005));
+      arch.position.x = x;
+      arch.position.y = 0.36;
+      root.add(wheel, arch);
     }
   }
 
-  const indicators = [-2.19, 2.19].flatMap((x) =>
-    [-0.82, 0.82].map((z) => {
+  const indicators = [-2.22, 2.22].flatMap((x) =>
+    [-0.78, 0.78].map((z) => {
       const material = toon(0x7a4a10);
-      const indicator = box(0.06, 0.08, 0.16, material);
-      indicator.position.set(x, 0.75, z);
+      const indicator = box(0.06, 0.07, 0.16, material);
+      indicator.position.set(x, 0.76, z);
       root.add(indicator);
       return material;
     }),
   );
 
   const sparkles = [
-    [-1.6, 1.08, 0.7],
+    [-1.7, 1.0, 0.7],
     [0.3, 1.63, 0.6],
-    [1.9, 0.95, 0.93],
-    [-0.6, 0.8, 0.93],
-    [1.2, 1.63, -0.3],
+    [1.9, 1.05, 0.95],
+    [-0.6, 0.8, 0.95],
+    [1.2, 1.55, -0.3],
   ].map(([x, y, z]) => {
     const sparkle = createSparkle();
     sparkle.position.set(x, y, z);

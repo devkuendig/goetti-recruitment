@@ -182,7 +182,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     previousCarX = x;
     tunedCar.root.position.x = x;
     tunedCar.wheels.forEach((wheel) => {
-      wheel.rotation.y += rolled / 0.34;
+      wheel.rotation.z += rolled / 0.34;
     });
   }, ease.out);
   timeline.tween(6.2, SCENE01_DURATION_SECONDS - 6.2, (_progress, elapsed) => {
@@ -192,6 +192,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     tunedCar.body.position.y = thump * 0.035;
     tunedCar.hoodPacifier.position.y = 0.82 + thump * 0.12;
     tunedCar.hoodPacifier.rotation.z = Math.sin(elapsed * BEAT_RATE) * 0.3;
+    tunedCar.fuzzyDice.rotation.x = Math.sin(elapsed * BEAT_RATE) * 0.35;
     kid.head.rotation.x = Math.sin(elapsed * BEAT_RATE * 2) * 0.08;
   }, ease.linear);
 
