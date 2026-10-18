@@ -1,6 +1,16 @@
-import { Group, Mesh, MeshBasicMaterial, PlaneGeometry, TorusGeometry, type Material } from 'three';
-import { box, cylinder, sphere, textTexture, toon } from '../engine/build';
-import { createWheel, frontPlate, profileBody, sideMirror, slab, type ProfilePoint } from './carParts';
+import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, TorusGeometry, type Material } from 'three';
+import {
+  box,
+  cylinder,
+  glow,
+  GLOW_INTENSITY,
+  profileBody,
+  sphere,
+  textTexture,
+  toon,
+  type ProfilePoint,
+} from '../engine/build';
+import { createWheel, frontPlate, sideMirror, slab } from './carParts';
 
 export interface TunedCar {
   root: Group;
@@ -68,7 +78,7 @@ export function createTunedCar(): TunedCar {
   fuzzyDice.position.set(-0.75, 1.2, 0);
   body.add(fuzzyDice);
 
-  const underglow = new Mesh(new PlaneGeometry(4.2, 2.2), new MeshBasicMaterial({ color: 0x39ff88 }));
+  const underglow = new Mesh(new PlaneGeometry(4.2, 2.2), new MeshBasicMaterial({ color: new Color(0x39ff88).multiplyScalar(GLOW_INTENSITY) }));
   underglow.material.userData.outlineParameters = { visible: false };
   underglow.rotation.x = -Math.PI / 2;
   underglow.position.y = 0.02;
@@ -142,7 +152,7 @@ function addAeroKit(body: Group, carbon: Material, tint: Material): void {
   for (const side of [1, -1]) {
     const strut = box(0.08, 0.55, 0.06, tint);
     strut.position.set(2.1, 1.07, side * 0.65);
-    const endplate = box(0.5, 0.22, 0.03, toon(0x39ff88));
+    const endplate = box(0.5, 0.22, 0.03, glow(0x39ff88));
     endplate.position.set(2.1, 1.38, side * 1.06);
     body.add(strut, endplate);
   }
@@ -164,7 +174,7 @@ function addFrontEnd(body: Group, carbon: Material, gold: Material): void {
   badge.position.set(-2.34, 0.62, 0);
   body.add(badge);
   for (const side of [1, -1]) {
-    const headlight = box(0.05, 0.1, 0.4, toon(0xffffee, 0xbbbbaa));
+    const headlight = box(0.05, 0.1, 0.4, glow(0xffffee));
     headlight.position.set(-2.3, 0.62, side * 0.68);
     headlight.rotation.x = side * 0.18;
     const eyelid = box(0.06, 0.04, 0.42, carbon);
@@ -187,7 +197,7 @@ function addRear(body: Group, gold: Material): void {
     soot.position.copy(exhaust.position);
     body.add(exhaust, soot);
   }
-  const tailLights = box(0.04, 0.1, 1.7, toon(0xff2a3a, 0x880011));
+  const tailLights = box(0.04, 0.1, 1.7, glow(0xff2a3a));
   tailLights.position.set(2.4, 0.66, 0);
   body.add(tailLights);
 }
@@ -257,15 +267,56 @@ function createFuzzyDice(): Group {
   return dice;
 }
 
+/**
+ * Pacifier ("Nuggi"): butterfly-shaped shield with air vents, centre button with a
+ * heart, hanging ring handle and a teat that goes in the mouth. Teat points -z.
+ */
 export function createPacifier(color: number, scale: number): Group {
   const pacifier = new Group();
-  const shield = box(0.22, 0.14, 0.04, toon(color));
-  const nipple = sphere(0.06, toon(0xf3e2b0));
-  nipple.position.z = -0.05;
-  const ring = cylinder(0.07, 0.07, 0.03, toon(color));
-  ring.rotation.x = Math.PI / 2;
-  ring.position.z = 0.06;
-  pacifier.add(shield, nipple, ring);
+  const shieldMaterial = toon(color);
+  for (const side of [-1, 1]) {
+    const wing = sphere(0.075, shieldMaterial);
+    wing.scale.set(1.15, 0.85, 0.28);
+    wing.position.x = side * 0.06;
+    const vent = sphere(0.022, toon(0x1a1a22));
+    vent.scale.set(1.3, 0.8, 0.3);
+    vent.position.set(side * 0.085, 0, 0.018);
+    pacifier.add(wing, vent);
+  }
+  const middle = sphere(0.06, shieldMaterial);
+  middle.scale.set(1, 1, 0.32);
+  pacifier.add(middle);
+
+  const button = cylinder(0.035, 0.038, 0.03, toon(0xffffff));
+  button.rotation.x = Math.PI / 2;
+  button.position.z = 0.025;
+  const heart = new Group();
+  for (const side of [-1, 1]) {
+    const lobe = sphere(0.009, toon(0xff3b6b));
+    lobe.position.set(side * 0.007, 0.004, 0);
+    heart.add(lobe);
+  }
+  const tip = box(0.012, 0.012, 0.006, toon(0xff3b6b));
+  tip.rotation.z = Math.PI / 4;
+  tip.position.y = -0.005;
+  heart.add(tip);
+  heart.position.z = 0.042;
+  pacifier.add(button, heart);
+
+  const ring = new Mesh(new TorusGeometry(0.045, 0.01, 8, 20), shieldMaterial);
+  ring.position.set(0, -0.045, 0.045);
+  ring.rotation.x = 0.3;
+  pacifier.add(ring);
+
+  const teatMaterial = toon(0xf6dfae);
+  const neck = cylinder(0.014, 0.018, 0.03, teatMaterial);
+  neck.rotation.x = Math.PI / 2;
+  neck.position.z = -0.03;
+  const teat = sphere(0.03, teatMaterial);
+  teat.scale.set(0.9, 0.75, 1.3);
+  teat.position.z = -0.075;
+  pacifier.add(neck, teat);
+
   pacifier.scale.setScalar(scale);
   return pacifier;
 }

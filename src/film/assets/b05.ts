@@ -2,21 +2,26 @@ import {
   AdditiveBlending,
   CanvasTexture,
   Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
   Sprite,
   SpriteMaterial,
   type ColorRepresentation,
+  type Material,
   type MeshToonMaterial,
 } from 'three';
-import { box, cylinder, toon } from '../engine/build';
 import {
-  createWheel,
-  frontPlate,
+  box,
+  cylinder,
+  glow,
+  GLOW_INTENSITY,
   profileBody,
-  sideMirror,
-  slab,
-  wheelArch,
+  textTexture,
+  toon,
   type ProfilePoint,
-} from './carParts';
+} from '../engine/build';
+import { createWheel, frontPlate, sideMirror, slab, wheelArch } from './carParts';
 
 export interface B05 {
   root: Group;
@@ -89,20 +94,22 @@ export function createB05(paint: ColorRepresentation): B05 {
     root.add(mirror);
   }
 
-  const lightBarFront = box(0.04, 0.045, 1.62, toon(0xffffff, 0xddeeff));
-  lightBarFront.position.set(-2.18, 0.84, 0);
-  const lowerGrille = box(0.06, 0.2, 1.2, trim);
-  lowerGrille.position.set(-2.25, 0.46, 0);
-  const plate = frontPlate('ZH·123 456');
-  plate.position.set(-2.29, 0.47, 0);
-  const logo = box(0.03, 0.05, 0.16, silver);
-  logo.position.set(-2.22, 0.74, 0);
-  const lightBarRear = box(0.04, 0.07, 1.7, toon(0xff3344, 0x880011));
-  lightBarRear.position.set(2.26, 0.88, 0);
+  // Black A-pillars + black roof = the B05's "floating roof" two-tone look.
+  for (const side of [1, -1]) {
+    const aPillar = slab([-1.35, 1.03], [-0.6, 1.5], 0.09, 0.035, trim, BEVEL + 0.015);
+    aPillar.position.z = side * 0.78;
+    root.add(aPillar);
+  }
+  const roofSpoiler = slab([1.15, 1.5], [1.75, 1.36], 1.5, 0.04, trim, BEVEL + 0.02);
+  root.add(roofSpoiler);
+
+  addFrontSignature(root, trim);
+  addRearSignature(root, trim);
+  addBadges(root);
   const sharkFin = cylinder(0.01, 0.06, 0.1, trim);
   sharkFin.scale.set(1.8, 1, 0.5);
   sharkFin.position.set(1.0, 1.58, 0);
-  root.add(lightBarFront, lowerGrille, plate, logo, lightBarRear, sharkFin);
+  root.add(sharkFin);
 
   for (const x of [-1.4, 1.4]) {
     for (const side of [1, -1]) {
@@ -118,6 +125,7 @@ export function createB05(paint: ColorRepresentation): B05 {
   const indicators = [-2.22, 2.22].flatMap((x) =>
     [-0.78, 0.78].map((z) => {
       const material = toon(0x7a4a10);
+      material.emissiveIntensity = GLOW_INTENSITY;
       const indicator = box(0.06, 0.07, 0.16, material);
       indicator.position.set(x, 0.76, z);
       root.add(indicator);
@@ -141,6 +149,79 @@ export function createB05(paint: ColorRepresentation): B05 {
   return { root, indicators, sparkles };
 }
 
+/**
+ * Front: slim full-width LED strip ending in headlamp clusters with vertical DRL
+ * "fangs", closed EV nose, wide black lower intake with corner vents.
+ */
+function addFrontSignature(root: Group, trim: Material): void {
+  const led = glow(0xeef6ff);
+  const strip = box(0.04, 0.035, 1.3, led);
+  strip.position.set(-2.18, 0.86, 0);
+  root.add(strip);
+  for (const side of [1, -1]) {
+    const cluster = box(0.06, 0.09, 0.26, toon(0x2a3340));
+    cluster.position.set(-2.17, 0.83, side * 0.72);
+    const lamp = box(0.065, 0.05, 0.2, led);
+    lamp.position.set(-2.175, 0.835, side * 0.72);
+    const fang = box(0.04, 0.14, 0.03, led);
+    fang.position.set(-2.235, 0.72, side * 0.83);
+    const cornerVent = box(0.06, 0.16, 0.22, trim);
+    cornerVent.position.set(-2.255, 0.48, side * 0.72);
+    cornerVent.rotation.x = side * 0.25;
+    root.add(cluster, lamp, fang, cornerVent);
+  }
+  const intake = box(0.06, 0.16, 1.0, trim);
+  intake.position.set(-2.25, 0.44, 0);
+  const wordmark = wordmarkPlane('LEAPMOTOR', 0.62, '#e9eef4');
+  wordmark.position.set(-2.245, 0.7, 0);
+  wordmark.rotation.y = -Math.PI / 2;
+  const plate = frontPlate('ZH·123 456');
+  plate.position.set(-2.29, 0.45, 0);
+  root.add(intake, wordmark, plate);
+}
+
+/** Rear: full-width tail-light bar, LEAPMOTOR lettering, B05 badge. */
+function addRearSignature(root: Group, trim: Material): void {
+  const tailBar = box(0.04, 0.06, 1.72, glow(0xff2a3a));
+  tailBar.position.set(2.24, 0.9, 0);
+  const diffuser = box(0.06, 0.14, 1.3, trim);
+  diffuser.position.set(2.22, 0.4, 0);
+  const wordmark = wordmarkPlane('LEAPMOTOR', 0.7, '#e9eef4');
+  wordmark.position.set(2.255, 0.76, 0);
+  wordmark.rotation.y = Math.PI / 2;
+  const badge = wordmarkPlane('B05', 0.2, '#e9eef4');
+  badge.position.set(2.265, 0.66, -0.6);
+  badge.rotation.y = Math.PI / 2;
+  root.add(tailBar, diffuser, wordmark, badge);
+}
+
+/** "B05" model badges on both front fenders — readable from Alain's side. */
+function addBadges(root: Group): void {
+  for (const side of [1, -1]) {
+    const badge = wordmarkPlane('B05', 0.24, '#e9eef4');
+    badge.position.set(-1.25, 0.82, side * (SIDE_Z + 0.012));
+    badge.rotation.y = side > 0 ? 0 : Math.PI;
+    root.add(badge);
+  }
+}
+
+/** Chrome-ish lettering with transparent background. */
+function wordmarkPlane(text: string, width: number, color: string): Mesh {
+  const texture = textTexture(text, {
+    width: 512,
+    height: 96,
+    font: 'bold 70px "Eurostile", "Arial Black", Arial, sans-serif',
+    color,
+    background: 'rgba(0,0,0,0)',
+  });
+  const plane = new Mesh(
+    new PlaneGeometry(width, width * (96 / 512)),
+    new MeshBasicMaterial({ map: texture, transparent: true }),
+  );
+  plane.material.userData.outlineParameters = { visible: false };
+  return plane;
+}
+
 export function setIndicators(car: B05, isOn: boolean): void {
   for (const indicator of car.indicators) {
     indicator.color.set(isOn ? 0xffb020 : 0x7a4a10);
@@ -160,6 +241,7 @@ export function createSparkle(): Sprite {
     transparent: true,
   });
   material.userData.outlineParameters = { visible: false };
+  material.color.setScalar(GLOW_INTENSITY * 0.75);
   const sparkle = new Sprite(material);
   sparkle.scale.setScalar(0);
   return sparkle;

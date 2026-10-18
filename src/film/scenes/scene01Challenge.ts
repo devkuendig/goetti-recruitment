@@ -1,9 +1,18 @@
 import { MathUtils, Vector3, type Object3D } from 'three';
 import { createB05, createSparkle, setIndicators } from '../assets/b05';
 import { CITY, createCity, LAMP_POST_X } from '../assets/city';
-import { createDog, createKid, createPasserby, createPovHands, walkCycle, type Passerby } from '../assets/people';
+import {
+  createDog,
+  createKid,
+  createPasserby,
+  createPovHands,
+  KID_PACIFIER_IN_MOUTH,
+  walkCycle,
+  type Passerby,
+} from '../assets/people';
+import { createBus, createPigeon, furnishStreet } from '../assets/streetFurniture';
 import { createTunedCar } from '../assets/tunedCar';
-import { box, toon } from '../engine/build';
+import { box, setOutlineThickness, toon } from '../engine/build';
 import { HIPHOP_BPM, type SoundBoard } from '../engine/audio';
 import type { Callouts } from '../engine/callouts';
 import type { Stage } from '../engine/stage';
@@ -13,6 +22,7 @@ export const SCENE01_DURATION_SECONDS = 17;
 
 const EYE_HEIGHT = 1.68;
 const STEP_LENGTH = 0.75;
+const POV_FOV = 60;
 const BEAT_RATE = (HIPHOP_BPM / 60) * Math.PI;
 const B05_POSITION = new Vector3(3, 0, CITY.parkingZ);
 const B05_LOOK_POINT = new Vector3(2.4, 0.9, CITY.parkingZ);
@@ -21,16 +31,33 @@ const TUNED_CAR_START_X = 55;
 const GAWKER_START_X = 3.5;
 const GAWKER_BONK_X = LAMP_POST_X + 0.28;
 const GAWKER_BONK_TIME = 5;
+/** Two seconds before the bonk, so the two gags don't step on each other. */
+const UNLOCK_TIME = GAWKER_BONK_TIME - 2;
+
+const OUTLINE = { background: 0.0022, character: 0.005 } as const;
+
+/** A fixed camera set-up that cuts away from Alain's POV for a while. */
+interface Shot {
+  start: number;
+  end: number;
+  position: Vector3;
+  target: () => Vector3;
+  fov: number;
+}
 
 /**
- * Scene 1 — "Die Herausforderung".
+ * Scene 1 — "Irgendwo in Winti".
  * Alain walks (POV) towards his sparkling B05, passers-by gawk, then a tuned car
- * rolls in with a toddler at the wheel who whistles at him.
+ * rolls in with a toddler at the wheel who whistles at him. Three cut-aways:
+ * a commercial-style hero shot of the B05, the bonk, and a reverse shot on the kid.
  */
 export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callouts): Timeline {
   const { scene, camera } = stage;
   const timeline = new Timeline();
   const city = createCity(scene);
+  const street = furnishStreet();
+  city.root.add(street);
+  setOutlineThickness(city.root, OUTLINE.background);
 
   const b05 = createB05(0x2f7fe0);
   b05.root.position.copy(B05_POSITION);
@@ -39,12 +66,24 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   const hands = createPovHands();
   camera.add(hands.root);
 
-  const gawker = createPasserby(0xffc23d, 0x4a2f1b, 0x3b4a6b);
+  const gawker = createPasserby({
+    shirt: 0xffc23d,
+    trousers: 0x3b4a6b,
+    hair: 0x4a2f1b,
+    hairStyle: 'short',
+    bag: 0x8a5a2c,
+  });
   gawker.root.position.set(GAWKER_START_X, 0, CITY.curbZ + 0.8);
   gawker.root.rotation.y = -Math.PI / 2;
-  scene.add(gawker.root);
 
-  const photographer = createPasserby(0xff7fa8, 0x1c1c1c, 0x5b3a6b);
+  const photographer = createPasserby({
+    shirt: 0xff7fa8,
+    trousers: 0x5b3a6b,
+    hair: 0x1c1c1c,
+    hairStyle: 'bun',
+    glasses: true,
+    shoes: 0xffffff,
+  });
   photographer.root.position.set(6.6, 0, 4.7);
   photographer.root.rotation.y = Math.PI + 0.3;
   photographer.arms.forEach((arm) => arm.rotation.set(-1.45, 0, 0));
@@ -54,15 +93,43 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   const phoneFlash = createSparkle();
   phoneFlash.position.set(0, -0.68, 0.12);
   photographer.arms[1].add(phoneFlash);
-  scene.add(photographer.root);
 
-  const dogOwner = createPasserby(0x4fa36a, 0xb0b0b0, 0x6b5a3b);
+  const dogOwner = createPasserby({
+    shirt: 0x4fa36a,
+    trousers: 0x6b5a3b,
+    hair: 0x8a8a8a,
+    hairStyle: 'bald',
+    beard: true,
+  });
   dogOwner.root.position.set(4.8, 0, -5.6);
-  scene.add(dogOwner.root);
   const dog = createDog();
   dog.root.position.set(3.7, 0, -5);
   dog.root.rotation.y = -0.08;
   dog.body.rotation.x = -0.3;
+
+  const jogger = createPasserby({
+    shirt: 0x39c0e0,
+    trousers: 0x222228,
+    hair: 0xc98a3a,
+    hairStyle: 'ponytail',
+    headband: 0xff4f8a,
+    shoes: 0xff6a2a,
+  });
+  jogger.root.position.set(-20, 0, -5);
+  jogger.root.rotation.y = Math.PI / 2;
+
+  const pensioner = createPasserby({
+    shirt: 0x9a7a5a,
+    trousers: 0x5a5a62,
+    hair: 0xdddddd,
+    hairStyle: 'hat',
+    glasses: true,
+  });
+  pensioner.root.position.set(16, 0, -6.3);
+  pensioner.root.rotation.y = -Math.PI / 2;
+
+  const characters = [gawker, photographer, dogOwner, jogger, pensioner];
+  characters.forEach((person) => scene.add(person.root));
   scene.add(dog.root);
 
   const tunedCar = createTunedCar();
@@ -71,9 +138,23 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   const kid = createKid();
   tunedCar.driverSeat.add(kid.root);
 
+  const bus = createBus();
+  bus.root.position.x = 45;
+  scene.add(bus.root);
+
+  const pigeon = createPigeon();
+  pigeon.root.position.set(4.5, 0, -1.3);
+  pigeon.root.rotation.y = 2.2;
+  scene.add(pigeon.root);
+
+  [...characters.map((person) => person.root), dog.root, kid.root, pigeon.root].forEach((root) =>
+    setOutlineThickness(root, OUTLINE.character),
+  );
+
   const lookTarget = new Vector3();
   const kidHeadPosition = new Vector3();
   let lookBlend = 0;
+  let povFov = POV_FOV;
   let setMusicVolume: ((volume: number) => void) | undefined;
 
   // ── Ambience, clouds, idle loops ────────────────────────────────────────────
@@ -89,6 +170,34 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     });
     dog.tail.rotation.y = Math.sin(elapsed * 18) * 0.6;
     dogOwner.head.rotation.y = 0.5 + Math.sin(elapsed * 0.7) * 0.1;
+    city.catTail.rotation.z = Math.sin(elapsed * 1.8) * 0.5;
+  }, ease.linear);
+
+  // ── Background life: jogger, pensioner, bus ─────────────────────────────────
+  timeline.tween(0, 12, (progress) => {
+    const x = lerp(-20, 25, progress);
+    jogger.root.position.x = x;
+    jogger.root.position.y = Math.abs(Math.sin((x + 20) * 2.2)) * 0.06;
+    walkCycle(jogger, (x + 20) * 2.2, 0.9);
+  }, ease.linear);
+  timeline.tween(0, 14, (progress) => {
+    const x = lerp(16, 7, progress);
+    pensioner.root.position.x = x;
+    walkCycle(pensioner, (16 - x) * 5, 0.3);
+  }, ease.linear);
+  // He stops and shakes his head at the tuned car.
+  timeline.tween(10.5, 3, (_progress, elapsed) => {
+    pensioner.head.rotation.y = -0.9 + Math.sin(elapsed * 9) * 0.25;
+  }, ease.linear);
+  let previousBusX = 45;
+  timeline.tween(0.3, 6, (progress) => {
+    const x = lerp(45, -60, progress);
+    const rolled = previousBusX - x;
+    previousBusX = x;
+    bus.root.position.x = x;
+    bus.wheels.forEach((wheel) => {
+      wheel.rotation.z += rolled / 0.5;
+    });
   }, ease.linear);
 
   // ── POV walk towards the B05 ────────────────────────────────────────────────
@@ -108,9 +217,12 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     hands.root.rotation.z = Math.sin(stepPhase) * 0.03;
   }, ease.linear);
 
-  // Big showroom "ping" off the roof the moment the sun catches it.
-  timeline.at(2, () => sounds.ping(2400));
-  timeline.tween(2, 0.6, (progress) => {
+  // Big showroom "ping" off the roof the moment the sun catches it — with a commercial banner.
+  timeline.at(1, () => {
+    sounds.ping(2400);
+    callouts.showBanner('LEAPMOTOR B05', 'Funkelt sogar in Winti.', 2.6);
+  });
+  timeline.tween(1, 0.6, (progress) => {
     b05.sparkles[1].scale.setScalar(Math.sin(progress * Math.PI) * 1.4);
   }, ease.linear);
 
@@ -142,7 +254,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   }, ease.linear);
 
   // ── Photographer snaps two pictures ─────────────────────────────────────────
-  for (const flashTime of [2.8, 3.5]) {
+  for (const flashTime of [1.6, 2.2]) {
     timeline.at(flashTime, () => sounds.cameraShutter());
     timeline.tween(flashTime, 0.25, (progress) => {
       phoneFlash.scale.setScalar(Math.sin(progress * Math.PI) * 0.6);
@@ -155,19 +267,19 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   });
 
   // ── Unlock with the key fob ─────────────────────────────────────────────────
-  timeline.tween(5.5, 0.45, (progress) => {
+  timeline.tween(UNLOCK_TIME - 0.5, 0.45, (progress) => {
     hands.keyHand.position.set(0.3 - progress * 0.06, -0.34 + progress * 0.12, -0.62);
   }, ease.out);
-  timeline.at(6, () => {
+  timeline.at(UNLOCK_TIME, () => {
     sounds.unlockBeep();
     hands.fobLed.emissive.set(0xff2020);
     callouts.show('BIP BIP!', b05.root, 1.2, 1.9);
   });
-  timeline.tween(6, 0.8, (progress) => {
+  timeline.tween(UNLOCK_TIME, 0.8, (progress) => {
     setIndicators(b05, progress < 0.25 || (progress > 0.45 && progress < 0.7));
   }, ease.linear);
-  timeline.at(6.3, () => hands.fobLed.emissive.set(0x000000));
-  timeline.tween(6.6, 0.5, (progress) => {
+  timeline.at(UNLOCK_TIME + 0.3, () => hands.fobLed.emissive.set(0x000000));
+  timeline.tween(UNLOCK_TIME + 0.6, 0.5, (progress) => {
     hands.keyHand.position.set(0.24 + progress * 0.06, -0.22 - progress * 0.12, -0.62);
   });
 
@@ -196,6 +308,20 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     kid.head.rotation.x = Math.sin(elapsed * BEAT_RATE * 2) * 0.08;
   }, ease.linear);
 
+  // ── Pigeon pecks on the road until the bass scares it off ───────────────────
+  timeline.tween(0, 8.8, (_progress, elapsed) => {
+    pigeon.head.rotation.x = Math.max(0, Math.sin(elapsed * 7)) * 0.9;
+  }, ease.linear);
+  timeline.at(8.8, () => callouts.show('GURRR!', pigeon.root, 0.9, 0.4));
+  timeline.tween(8.8, 2.5, (progress, elapsed) => {
+    pigeon.root.position.set(lerp(4.5, 1, progress), progress ** 0.7 * 7, lerp(-1.3, 6, progress));
+    pigeon.root.rotation.y = -0.5;
+    pigeon.head.rotation.x = 0;
+    const flap = Math.sin(elapsed * 28) * 0.9;
+    pigeon.wings[0].rotation.z = flap;
+    pigeon.wings[1].rotation.z = -flap;
+  }, ease.linear);
+
   // ── Alain's double take: glance, back to the car, then snap to the kid ─────
   timeline.tween(0, SCENE01_DURATION_SECONDS, () => {
     kid.head.getWorldPosition(kidHeadPosition);
@@ -212,8 +338,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     lookBlend = progress;
   });
   timeline.tween(11.6, 1, (progress) => {
-    camera.fov = lerp(60, 40, progress);
-    camera.updateProjectionMatrix();
+    povFov = lerp(POV_FOV, 24, progress);
   });
   timeline.tween(11.4, 0.6, (progress) => {
     dog.root.rotation.y = lerp(-0.08, 1.2, progress);
@@ -224,6 +349,17 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   timeline.tween(12, 3.6, (progress, elapsed) => {
     kid.wavingArm.rotation.z = Math.sin(elapsed * 10) * 0.5 * Math.sin(progress * Math.PI);
   }, ease.linear);
+  // Pacifier pops out for the whistle, dangles at the chest, then goes back in.
+  const pacifierDangling = new Vector3(0.02, -0.32, 0.2);
+  timeline.at(12.2, () => callouts.show('PLOPP!', kid.head, 0.8, 0.45));
+  timeline.tween(12.2, 0.3, (progress) => {
+    kid.pacifier.position.lerpVectors(KID_PACIFIER_IN_MOUTH, pacifierDangling, progress);
+    kid.pacifier.rotation.x = progress * 0.9;
+  }, ease.out);
+  timeline.tween(13.9, 0.3, (progress) => {
+    kid.pacifier.position.lerpVectors(pacifierDangling, KID_PACIFIER_IN_MOUTH, progress);
+    kid.pacifier.rotation.x = (1 - progress) * 0.9;
+  }, ease.inOut);
   timeline.at(12.6, () => {
     sounds.wolfWhistle();
     callouts.show('FIU-FIUUUH!', kid.head, 1.6, 0.35);
@@ -240,6 +376,48 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   }, ease.linear);
   timeline.tween(15, 0.6, (progress) => {
     kid.root.rotation.x = Math.sin(progress * Math.PI * 2) * 0.12;
+  }, ease.linear);
+
+  // ── Director: cut-aways override the POV camera. Added last so it wins. ─────
+  const gawkerHead = new Vector3();
+  const shots: Shot[] = [
+    {
+      // Low commercial hero shot of the B05's nose, gawker and photographer behind.
+      start: 0.8,
+      end: 2.6,
+      position: new Vector3(-1.6, 0.5, 2.0),
+      target: () => new Vector3(2.5, 0.85, 2.6),
+      fov: 42,
+    },
+    {
+      // Side-on view of the bonk.
+      start: 4.5,
+      end: 6.0,
+      position: new Vector3(-7.2, 1.3, 6.6),
+      target: () => gawker.head.getWorldPosition(gawkerHead),
+      fov: 40,
+    },
+    {
+      // Reverse shot from the street onto the kid: pacifier plop, whistle, glint.
+      start: 12.1,
+      end: 14.7,
+      position: new Vector3(0.4, 1.15, 1.2),
+      target: () => kidHeadPosition,
+      fov: 32,
+    },
+  ];
+  timeline.tween(0, SCENE01_DURATION_SECONDS, (_progress, elapsed) => {
+    const shot = shots.find((candidate) => elapsed >= candidate.start && elapsed < candidate.end);
+    hands.root.visible = !shot;
+    if (shot) {
+      camera.position.copy(shot.position);
+      camera.lookAt(shot.target());
+    }
+    const fov = shot ? shot.fov : povFov;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
   }, ease.linear);
 
   return timeline;

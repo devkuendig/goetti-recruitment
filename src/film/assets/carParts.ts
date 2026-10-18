@@ -1,39 +1,7 @@
-import {
-  ExtrudeGeometry,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  PlaneGeometry,
-  Shape,
-  TorusGeometry,
-  type Material,
-} from 'three';
-import { box, cylinder, textTexture, toon } from '../engine/build';
+import { Group, Mesh, MeshBasicMaterial, PlaneGeometry, TorusGeometry, type Material } from 'three';
+import { box, cylinder, textTexture, toon, type ProfilePoint } from '../engine/build';
 
 /** Shared parts for every car. Cars face -x, +z is the driver (left) side. */
-
-export type ProfilePoint = readonly [x: number, y: number];
-
-/** Extrudes a side silhouette (x/y) across the car's width, centred on z = 0. */
-export function profileBody(points: readonly ProfilePoint[], width: number, material: Material, bevel = 0.06): Mesh {
-  const shape = new Shape();
-  shape.moveTo(points[0][0], points[0][1]);
-  points.slice(1).forEach(([x, y]) => shape.lineTo(x, y));
-  shape.closePath();
-  const depth = width - bevel * 2;
-  const geometry = new ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: bevel > 0,
-    bevelSize: bevel,
-    bevelThickness: bevel,
-    bevelSegments: 3,
-  });
-  geometry.translate(0, 0, -depth / 2);
-  const body = new Mesh(geometry, material);
-  body.castShadow = true;
-  body.receiveShadow = true;
-  return body;
-}
 
 /**
  * Thin panel spanning two profile points — windshields, rear glass, roof trims.

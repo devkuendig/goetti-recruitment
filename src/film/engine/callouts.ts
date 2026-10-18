@@ -12,6 +12,7 @@ const projected = new Vector3();
 /** Comic onomatopoeia ("BONK!") as DOM labels pinned to a 3D object. */
 export class Callouts {
   private active: ActiveCallout[] = [];
+  private banners: { element: HTMLElement; remainingSeconds: number }[] = [];
 
   constructor(
     private readonly layer: HTMLElement,
@@ -27,7 +28,26 @@ export class Callouts {
     this.active.push({ element, anchor, offsetY, remainingSeconds: durationSeconds });
   }
 
+  /** Commercial-style lower third, not pinned to any object. */
+  showBanner(title: string, subtitle: string, durationSeconds: number): void {
+    const element = document.createElement('div');
+    element.className = 'banner';
+    const titleElement = document.createElement('strong');
+    titleElement.textContent = title;
+    const subtitleElement = document.createElement('span');
+    subtitleElement.textContent = subtitle;
+    element.append(titleElement, subtitleElement);
+    this.layer.appendChild(element);
+    this.banners.push({ element, remainingSeconds: durationSeconds });
+  }
+
   update(deltaSeconds: number): void {
+    for (const banner of this.banners) {
+      banner.remainingSeconds -= deltaSeconds;
+    }
+    this.banners.filter((banner) => banner.remainingSeconds <= 0).forEach((banner) => banner.element.remove());
+    this.banners = this.banners.filter((banner) => banner.remainingSeconds > 0);
+
     const width = this.layer.clientWidth;
     const height = this.layer.clientHeight;
     for (const callout of this.active) {
@@ -48,5 +68,7 @@ export class Callouts {
   clear(): void {
     this.active.forEach((callout) => callout.element.remove());
     this.active = [];
+    this.banners.forEach((banner) => banner.element.remove());
+    this.banners = [];
   }
 }

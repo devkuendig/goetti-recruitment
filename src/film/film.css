@@ -42,6 +42,36 @@ body {
   }
 }
 
+.banner {
+  position: absolute;
+  left: 6%;
+  bottom: 10%;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 1.2rem;
+  border-left: 6px solid #2f7fe0;
+  background: rgb(255 255 255 / 0.9);
+  color: #1a1a22;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  animation: banner-slide 0.4s ease-out;
+}
+
+.banner strong {
+  font-size: clamp(1.2rem, 3vw, 2.2rem);
+  letter-spacing: 0.08em;
+}
+
+.banner span {
+  font-size: clamp(0.8rem, 1.6vw, 1.1rem);
+  font-style: italic;
+}
+
+@keyframes banner-slide {
+  from {
+    transform: translateX(-120%);
+  }
+}
+
 .film__card {
   position: absolute;
   inset: 0;
