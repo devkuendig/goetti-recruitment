@@ -2,46 +2,20 @@
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  color: #1f2933;
-  background: #f7f9fb;
+  background: #111;
 }
 
-.hero {
-  padding: 6rem 1.5rem;
-  text-align: center;
-  color: #fff;
-  background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
-}
-
-.hero h1 { font-size: 3rem; margin: 0 0 1rem; }
-
-.button {
-  display: inline-block;
-  margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 999px;
-  background: #fff;
-  color: #1e3a8a;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-main { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem; }
-
-.services {
+.screen {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-}
-
-.card {
+  place-items: center;
+  min-height: 100vh;
   padding: 1.5rem;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
 }
 
-.contact { margin-top: 4rem; text-align: center; }
-
-footer { padding: 2rem; text-align: center; color: #6b7280; }
+.film-frame {
+  width: min(100%, calc((100vh - 3rem) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+}
