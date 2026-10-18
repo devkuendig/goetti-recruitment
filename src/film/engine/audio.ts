@@ -1,3 +1,14 @@
+export const HIPHOP_BPM = 90;
+
+/** One bar of sixteenth-note steps (0–15); bassline/chord in Hz (E minor). */
+const BOOM_BAP: Record<'kick' | 'snare' | 'stab' | 'bassline' | 'chord', readonly number[]> = {
+  kick: [0, 7, 10],
+  snare: [4, 12],
+  stab: [0, 6],
+  bassline: [41.2, 41.2, 49, 36.7],
+  chord: [164.8, 196, 246.9],
+};
+
 /**
  * Procedural sound effects via Web Audio — no audio files, no licensing questions.
  * Must be created from a user gesture (browser autoplay policy).
@@ -89,26 +100,44 @@ export class SoundBoard {
   }
 
   /**
-   * Bass-heavy loop from the tuned car. Returns a volume control so the scene
-   * can fade it with the car's distance.
+   * Boom-bap hip-hop loop from the tuned car: swung hats, kick, snare, bass and a
+   * minor-chord stab. Returns a volume control so the scene can fade it with the
+   * car's distance.
    */
-  bassMusic(durationSeconds: number): (volume: number) => void {
+  hipHopMusic(durationSeconds: number): (volume: number) => void {
     const now = this.context.currentTime;
     const musicGain = this.context.createGain();
     musicGain.gain.value = 0;
     const muffle = this.context.createBiquadFilter();
     muffle.type = 'lowpass';
-    muffle.frequency.value = 900;
+    muffle.frequency.value = 2500;
     musicGain.connect(muffle).connect(this.master);
 
-    const beatSeconds = 60 / 96;
-    const bassline = [55, 55, 65.4, 49];
-    for (let beat = 0; beat * beatSeconds < durationSeconds; beat++) {
-      const beatTime = now + beat * beatSeconds;
-      this.tone('sine', 150, 40, beatTime, 0.3, 0.9, musicGain);
-      if (beat % 2 === 1) {
-        const note = bassline[Math.floor(beat / 2) % bassline.length];
-        this.tone('sawtooth', note, note, beatTime, beatSeconds * 0.9, 0.25, musicGain);
+    const stepSeconds = 60 / HIPHOP_BPM / 4;
+    const swingSeconds = stepSeconds * 0.18;
+    for (let step = 0; step * stepSeconds < durationSeconds; step++) {
+      const stepInBar = step % 16;
+      const bar = Math.floor(step / 16);
+      const isOffbeatEighth = stepInBar % 4 === 2;
+      const stepTime = now + step * stepSeconds + (isOffbeatEighth ? swingSeconds : 0);
+
+      if (BOOM_BAP.kick.includes(stepInBar)) {
+        this.tone('sine', 140, 42, stepTime, 0.35, 1, musicGain);
+        const bassNote = BOOM_BAP.bassline[bar % BOOM_BAP.bassline.length];
+        this.tone('triangle', bassNote, bassNote, stepTime, stepSeconds * 3, 0.45, musicGain);
+      }
+      if (BOOM_BAP.snare.includes(stepInBar)) {
+        this.noiseHit(stepTime, 'bandpass', 1800, 0.18, 0.5, musicGain);
+        this.tone('triangle', 220, 160, stepTime, 0.1, 0.3, musicGain);
+      }
+      if (stepInBar % 2 === 0) {
+        const accent = stepInBar % 4 === 0 ? 0.12 : 0.07;
+        this.noiseHit(stepTime, 'highpass', 7000, 0.04, accent, musicGain);
+      }
+      if (BOOM_BAP.stab.includes(stepInBar) && bar % 2 === 0) {
+        for (const frequency of BOOM_BAP.chord) {
+          this.tone('square', frequency, frequency, stepTime, stepSeconds * 2, 0.04, musicGain);
+        }
       }
     }
     return (volume: number) => {
@@ -118,6 +147,24 @@ export class SoundBoard {
 
   close(): void {
     void this.context.close();
+  }
+
+  private noiseHit(
+    startTime: number,
+    filterType: BiquadFilterType,
+    frequency: number,
+    durationSeconds: number,
+    peak: number,
+    destination: AudioNode,
+  ): void {
+    const source = this.context.createBufferSource();
+    source.buffer = this.noiseBuffer;
+    const filter = this.context.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = frequency;
+    source.connect(filter).connect(this.envelope(startTime, 0.002, durationSeconds, peak)).connect(destination);
+    source.start(startTime, Math.random());
+    source.stop(startTime + durationSeconds + 0.02);
   }
 
   private chirp(startTime: number): void {

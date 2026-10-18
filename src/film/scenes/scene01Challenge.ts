@@ -1,10 +1,10 @@
 import { MathUtils, Vector3, type Object3D } from 'three';
 import { createB05, createSparkle, setIndicators } from '../assets/b05';
-import { CITY, createCity } from '../assets/city';
+import { CITY, createCity, LAMP_POST_X } from '../assets/city';
 import { createDog, createKid, createPasserby, createPovHands, walkCycle, type Passerby } from '../assets/people';
 import { createTunedCar } from '../assets/tunedCar';
 import { box, toon } from '../engine/build';
-import type { SoundBoard } from '../engine/audio';
+import { HIPHOP_BPM, type SoundBoard } from '../engine/audio';
 import type { Callouts } from '../engine/callouts';
 import type { Stage } from '../engine/stage';
 import { ease, lerp, Timeline } from '../engine/timeline';
@@ -13,11 +13,14 @@ export const SCENE01_DURATION_SECONDS = 17;
 
 const EYE_HEIGHT = 1.68;
 const STEP_LENGTH = 0.75;
-const BEAT_RATE = (96 / 60) * Math.PI;
+const BEAT_RATE = (HIPHOP_BPM / 60) * Math.PI;
 const B05_POSITION = new Vector3(3, 0, CITY.parkingZ);
 const B05_LOOK_POINT = new Vector3(2.4, 0.9, CITY.parkingZ);
 const TUNED_CAR_STOP_X = 1.8;
 const TUNED_CAR_START_X = 55;
+const GAWKER_START_X = 3.5;
+const GAWKER_BONK_X = LAMP_POST_X + 0.28;
+const GAWKER_BONK_TIME = 5;
 
 /**
  * Scene 1 — "Die Herausforderung".
@@ -37,7 +40,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   camera.add(hands.root);
 
   const gawker = createPasserby(0xffc23d, 0x4a2f1b, 0x3b4a6b);
-  gawker.root.position.set(10, 0, CITY.curbZ + 0.8);
+  gawker.root.position.set(GAWKER_START_X, 0, CITY.curbZ + 0.8);
   gawker.root.rotation.y = -Math.PI / 2;
   scene.add(gawker.root);
 
@@ -103,7 +106,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
     camera.position.set(x, EYE_HEIGHT + bob, CITY.sidewalkZ);
     hands.root.position.y = -bob * 0.6;
     hands.root.rotation.z = Math.sin(stepPhase) * 0.03;
-  }, ease.inOut);
+  }, ease.linear);
 
   // Big showroom "ping" off the roof the moment the sun catches it.
   timeline.at(2, () => sounds.ping(2400));
@@ -112,27 +115,27 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
   }, ease.linear);
 
   // ── Gawker walks past, stares, walks into the lamp post ─────────────────────
-  timeline.tween(0.3, 7.7, (progress) => {
-    const x = lerp(10, -0.12, progress);
+  timeline.tween(0.3, GAWKER_BONK_TIME - 0.3, (progress) => {
+    const x = lerp(GAWKER_START_X, GAWKER_BONK_X, progress);
     gawker.root.position.x = x;
-    walkCycle(gawker, (10 - x) * 4);
+    walkCycle(gawker, (GAWKER_START_X - x) * 4);
     turnHeadTowards(gawker, B05_LOOK_POINT, 1.9);
   }, ease.linear);
   timeline.tween(2.5, 0.4, (progress) => {
     gawker.mouth.scale.set(1, lerp(0.25, 1.1, progress), 0.5);
   });
-  timeline.at(8, () => {
+  timeline.at(GAWKER_BONK_TIME, () => {
     sounds.bonk();
     callouts.show('BONK!', gawker.head, 1.4, 0.5);
     gawker.dizzyStars.visible = true;
   });
-  timeline.tween(8, 0.5, (progress) => {
-    gawker.root.position.x = lerp(-0.12, 0.35, progress);
+  timeline.tween(GAWKER_BONK_TIME, 0.5, (progress) => {
+    gawker.root.position.x = lerp(GAWKER_BONK_X, GAWKER_BONK_X + 0.47, progress);
     gawker.root.rotation.z = Math.sin(progress * Math.PI) * 0.25;
     walkCycle(gawker, 0, 0);
     gawker.head.rotation.y = lerp(gawker.head.rotation.y, 0, progress);
   }, ease.out);
-  timeline.tween(8, SCENE01_DURATION_SECONDS - 8, (_progress, elapsed) => {
+  timeline.tween(GAWKER_BONK_TIME, SCENE01_DURATION_SECONDS - GAWKER_BONK_TIME, (_progress, elapsed) => {
     city.lampPost.rotation.x = Math.sin(elapsed * 25) * 0.05 * Math.exp(-elapsed * 2);
     gawker.dizzyStars.rotation.y = elapsed * 6;
     gawker.root.rotation.x = Math.sin(elapsed * 3) * 0.06;
@@ -170,7 +173,7 @@ export function buildScene01(stage: Stage, sounds: SoundBoard, callouts: Callout
 
   // ── Tuned car rolls in, bass first ──────────────────────────────────────────
   timeline.at(6.2, () => {
-    setMusicVolume = sounds.bassMusic(SCENE01_DURATION_SECONDS);
+    setMusicVolume = sounds.hipHopMusic(SCENE01_DURATION_SECONDS);
   });
   let previousCarX = TUNED_CAR_START_X;
   timeline.tween(6.5, 4.3, (progress) => {

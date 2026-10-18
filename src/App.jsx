@@ -4,7 +4,7 @@ export default function App() {
       <iframe
         className="film-frame"
         src="film.html"
-        title="Alain — Szene 1: Die Herausforderung"
+        title="Irgendwo in Winti"
         allow="autoplay; fullscreen"
       />
     </main>

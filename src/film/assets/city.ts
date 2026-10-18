@@ -20,6 +20,8 @@ export const CITY = {
   parkingZ: 2.4,
 } as const;
 
+export const LAMP_POST_X = -5;
+
 const BUILDING_COLORS = [0xf6c6a8, 0xa8d8c8, 0xf3e3a1, 0xc9b8e8, 0xf2a9a0, 0xb5d3f0];
 
 export interface City {
@@ -52,7 +54,7 @@ export function createCity(scene: Scene): City {
     root.add(createTree(x + 5, -6.8));
   }
   const lampPost = createLampPost();
-  lampPost.position.set(-0.4, 0, CITY.curbZ + 0.4);
+  lampPost.position.set(LAMP_POST_X, 0, CITY.curbZ + 0.4);
   root.add(lampPost);
   root.add(createBakerySign());
 
