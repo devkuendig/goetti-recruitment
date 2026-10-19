@@ -84,6 +84,23 @@ body {
   color: #1a1a22;
 }
 
+/* Title still: the 3D scene shows through; sign on top, play button at the bottom. */
+.film__card--title {
+  justify-content: space-between;
+  padding: 5vh 1rem 8vh;
+  background: linear-gradient(rgb(0 0 0 / 0.25), transparent 35%, transparent 75%, rgb(0 0 0 / 0.3));
+}
+
+.film__sign {
+  padding: 0.6rem 1.6rem 0.9rem;
+  border: 4px solid #1a1a22;
+  border-radius: 1rem;
+  background: #ffd84a;
+  box-shadow: 6px 6px 0 #1a1a22;
+  text-align: center;
+  transform: rotate(-2deg);
+}
+
 .film__card--end {
   background: rgb(17 17 17 / 0.55);
   color: #fff;

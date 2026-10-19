@@ -3,6 +3,7 @@ import { Callouts } from './engine/callouts';
 import { Stage } from './engine/stage';
 import type { Timeline } from './engine/timeline';
 import { buildScene01, SCENE01_DURATION_SECONDS } from './scenes/scene01Challenge';
+import { buildTitleScene } from './scenes/titleScene';
 
 function requireElement(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -26,10 +27,12 @@ try {
   const stage = new Stage(stageHost);
   const callouts = new Callouts(requireElement('callouts'), stage.camera);
   let timeline: Timeline | undefined;
+  let titleTimeline: Timeline | undefined = buildTitleScene(stage);
   let sounds: SoundBoard | undefined;
 
   const play = () => {
     try {
+      titleTimeline = undefined;
       sounds?.close();
       callouts.clear();
       stage.reset();
@@ -43,6 +46,7 @@ try {
   };
 
   stage.onFrame((deltaSeconds) => {
+    titleTimeline?.advance(deltaSeconds);
     if (!timeline) {
       return;
     }
