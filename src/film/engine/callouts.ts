@@ -20,12 +20,13 @@ export class Callouts {
   ) {}
 
   show(text: string, anchor: Object3D, durationSeconds: number, offsetY = 0.4): void {
-    const element = document.createElement('div');
-    element.className = 'callout';
-    element.textContent = text;
+    const element = this.pin('callout', text, anchor, durationSeconds, offsetY);
     element.style.setProperty('--tilt', `${(Math.random() * 16 - 8).toFixed(1)}deg`);
-    this.layer.appendChild(element);
-    this.active.push({ element, anchor, offsetY, remainingSeconds: durationSeconds });
+  }
+
+  /** Speech bubble with a tail pointing down at the speaker. */
+  say(text: string, anchor: Object3D, durationSeconds: number, offsetY = 0.5): void {
+    this.pin('speech', text, anchor, durationSeconds, offsetY);
   }
 
   /** Commercial-style lower third, not pinned to any object. */
@@ -63,6 +64,15 @@ export class Callouts {
     const expired = this.active.filter((callout) => callout.remainingSeconds <= 0);
     expired.forEach((callout) => callout.element.remove());
     this.active = this.active.filter((callout) => callout.remainingSeconds > 0);
+  }
+
+  private pin(className: string, text: string, anchor: Object3D, durationSeconds: number, offsetY: number): HTMLElement {
+    const element = document.createElement('div');
+    element.className = className;
+    element.textContent = text;
+    this.layer.appendChild(element);
+    this.active.push({ element, anchor, offsetY, remainingSeconds: durationSeconds });
+    return element;
   }
 
   clear(): void {

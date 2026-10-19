@@ -1,4 +1,4 @@
-import { Group, Mesh, TorusGeometry, Vector3, type MeshToonMaterial } from 'three';
+import { Group, MathUtils, Mesh, TorusGeometry, Vector3, type MeshToonMaterial, type Object3D } from 'three';
 import { box, cylinder, GLOW_INTENSITY, sphere, toon } from '../engine/build';
 import { createPacifier } from './tunedCar';
 
@@ -14,6 +14,9 @@ export interface Kid {
   whistleMouth: Mesh;
   glintAnchor: Group;
   pacifier: Group;
+  sunglasses: Group;
+  /** Big eyes behind the sunglasses, hidden until the glasses are pushed up. */
+  eyes: [Group, Group];
 }
 
 const KID_HEAD_RADIUS = 0.21;
@@ -68,6 +71,20 @@ export function createKid(): Kid {
   const bridge = box(0.03, 0.015, 0.02, toon(INK));
   sunglasses.add(bridge);
   head.add(sunglasses);
+  const eyes = [-1, 1].map((side) => {
+    const eye = new Group();
+    eye.position.set(side * 0.075, 0.04, 0.165);
+    eye.visible = false;
+    const white = sphere(0.04, toon(0xffffff));
+    white.scale.set(1, 1.15, 0.8);
+    const pupil = sphere(0.022, toon(INK));
+    pupil.position.set(0, -0.005, 0.03);
+    const highlight = sphere(0.007, toon(0xffffff));
+    highlight.position.set(0.008, 0.008, 0.05);
+    eye.add(white, pupil, highlight);
+    head.add(eye);
+    return eye;
+  }) as [Group, Group];
   const glintAnchor = new Group();
   glintAnchor.position.set(0.1, 0.06, 0.22);
   head.add(glintAnchor);
@@ -101,7 +118,99 @@ export function createKid(): Kid {
     node.receiveShadow = false;
   });
 
-  return { root, head, wavingArm, whistleMouth, glintAnchor, pacifier };
+  return { root, head, wavingArm, whistleMouth, glintAnchor, pacifier, sunglasses, eyes };
+}
+
+export interface Pram {
+  root: Group;
+  /** Put the kid's root in here; it sits facing the pram's front (+z). */
+  seat: Group;
+  wheels: Group[];
+}
+
+/** Navy pram with a folding hood at the back and the push handle behind it. Faces +z. */
+export function createPram(): Pram {
+  const root = new Group();
+  const fabric = toon(0x2f4f7f);
+  const metal = toon(0xcfd3d6);
+  const tub = box(0.5, 0.32, 0.8, fabric);
+  tub.position.set(0, 0.62, 0);
+  const trim = box(0.52, 0.04, 0.82, toon(0xffffff));
+  trim.position.set(0, 0.79, 0);
+  const hood = sphere(0.3, fabric);
+  hood.scale.set(0.9, 0.85, 0.8);
+  hood.position.set(0, 0.8, -0.32);
+  const frame = box(0.04, 0.04, 0.9, metal);
+  frame.position.set(0, 0.36, 0);
+  const handlePost = box(0.04, 0.7, 0.04, metal);
+  handlePost.position.set(0, 0.9, -0.6);
+  handlePost.rotation.x = -0.45;
+  const handle = cylinder(0.025, 0.025, 0.5, toon(0x1a1a22));
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(0, 1.2, -0.75);
+  root.add(tub, trim, hood, frame, handlePost, handle);
+  const wheels = [-0.32, 0.32].flatMap((z) =>
+    [-1, 1].map((side) => {
+      const wheel = new Group();
+      wheel.position.set(side * 0.27, 0.15, z);
+      const tyre = cylinder(0.15, 0.15, 0.05, toon(0x1a1a22));
+      tyre.rotation.z = Math.PI / 2;
+      const hub = cylinder(0.05, 0.05, 0.06, metal);
+      hub.rotation.z = Math.PI / 2;
+      wheel.add(tyre, hub);
+      root.add(wheel);
+      return wheel;
+    }),
+  );
+  const seat = new Group();
+  seat.position.set(0, 0.5, -0.12);
+  seat.scale.setScalar(0.85);
+  root.add(seat);
+  return { root, seat, wheels };
+}
+
+/** Rollator for the grandma, with a shopping basket (a Zopf and a leek sticking out). Faces +z. */
+export function createRollator(): Group {
+  const rollator = new Group();
+  const frame = toon(0xb5473a);
+  for (const side of [-1, 1]) {
+    const post = box(0.03, 0.85, 0.03, frame);
+    post.position.set(side * 0.24, 0.45, -0.05);
+    post.rotation.x = 0.12;
+    const grip = cylinder(0.022, 0.022, 0.12, toon(0x1a1a22));
+    grip.rotation.x = Math.PI / 2;
+    grip.position.set(side * 0.24, 0.88, -0.12);
+    rollator.add(post, grip);
+    for (const z of [-0.12, 0.28]) {
+      const wheel = cylinder(0.08, 0.08, 0.03, toon(0x1a1a22));
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(side * 0.24, 0.08, z);
+      rollator.add(wheel);
+    }
+  }
+  const basket = box(0.42, 0.2, 0.3, toon(0x8a6a4a));
+  basket.position.set(0, 0.55, 0.08);
+  const zopf = sphere(0.09, toon(0xd9a05a));
+  zopf.scale.set(1.6, 0.8, 0.9);
+  zopf.position.set(-0.06, 0.68, 0.08);
+  const leek = cylinder(0.025, 0.03, 0.4, toon(0xeef2d0));
+  leek.position.set(0.12, 0.78, 0.1);
+  leek.rotation.z = -0.3;
+  const leekTop = cylinder(0.05, 0.03, 0.16, toon(0x3f8a3a));
+  leekTop.position.set(0.18, 1.0, 0.1);
+  leekTop.rotation.z = -0.3;
+  rollator.add(basket, zopf, leek, leekTop);
+  return rollator;
+}
+
+const headWorld = new Vector3();
+
+/** Turns a head towards a world point, relative to its body's yaw — but no owl tricks beyond `maxYaw`. */
+export function turnHeadTowards(head: Object3D, bodyYaw: number, target: Vector3, maxYaw: number): void {
+  head.getWorldPosition(headWorld);
+  const worldYaw = Math.atan2(target.x - headWorld.x, target.z - headWorld.z);
+  const localYaw = MathUtils.euclideanModulo(worldYaw - bodyYaw + Math.PI, Math.PI * 2) - Math.PI;
+  head.rotation.y = MathUtils.clamp(localYaw, -maxYaw, maxYaw);
 }
 
 export interface Passerby {

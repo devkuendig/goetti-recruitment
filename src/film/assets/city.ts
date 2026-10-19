@@ -87,12 +87,22 @@ export interface City {
   catTail: Group;
   /** Sliding entrance doors, left and right panel. Slide them apart along x to open. */
   migrosDoors: [Mesh, Mesh];
+  /** Shadow-casting sun. Its shadow box only covers ±40 m — use `followWithSun` when filming far from the origin. */
+  sun: DirectionalLight;
+}
+
+const SUN_DISTANCE = 40;
+
+/** Moves the sun's shadow box along with the camera, so shadows exist wherever we film. */
+export function followWithSun(city: City, focus: Vector3): void {
+  city.sun.target.position.set(focus.x, 0, focus.z);
+  city.sun.position.copy(SUN_DIRECTION).multiplyScalar(SUN_DISTANCE).add(city.sun.target.position);
 }
 
 export function createCity(scene: Scene): City {
   scene.background = SKY_HORIZON.clone();
   scene.fog = new Fog(SKY_HORIZON, 50, 150);
-  addLighting(scene);
+  const sun = addLighting(scene);
   scene.add(createSkyDome());
 
   const root = new Group();
@@ -126,14 +136,16 @@ export function createCity(scene: Scene): City {
   });
 
   scene.add(root);
-  return { root, lampPost, clouds, catTail: cat.tail, migrosDoors: migros.doors };
+  return { root, lampPost, clouds, catTail: cat.tail, migrosDoors: migros.doors, sun };
 }
 
-function addLighting(scene: Scene): void {
+function addLighting(scene: Scene): DirectionalLight {
   scene.add(new HemisphereLight(0xcfe9ff, 0x9a8466, 1.05));
   scene.add(new AmbientLight(0xfff4e6, 0.3));
   const sun = new DirectionalLight(0xffe2b8, 2.9);
-  sun.position.copy(SUN_DIRECTION).multiplyScalar(40);
+  sun.position.copy(SUN_DIRECTION).multiplyScalar(SUN_DISTANCE);
+  // The target must live in the scene, otherwise moving it doesn't move the shadow box.
+  scene.add(sun.target);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -40;
@@ -145,6 +157,7 @@ function addLighting(scene: Scene): void {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
   scene.add(sun);
+  return sun;
 }
 
 /** Vertical gradient dome plus a glowing sun disc (the bloom pass makes it shine). */
@@ -466,7 +479,7 @@ function createSign(text: string, width: number): Mesh {
 }
 
 /** Flat, unlit text plane facing +z. */
-function createLabel(text: string, width: number, height: number, style: Parameters<typeof textTexture>[1]): Mesh {
+export function createLabel(text: string, width: number, height: number, style: Parameters<typeof textTexture>[1]): Mesh {
   const label = new Mesh(new PlaneGeometry(width, height), new MeshBasicMaterial({ map: textTexture(text, style) }));
   label.material.userData.outlineParameters = { visible: false };
   return label;

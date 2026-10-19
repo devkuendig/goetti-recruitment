@@ -282,6 +282,51 @@ export function createTrain(livery: TrainLivery): Group {
   return root;
 }
 
+/** Zebra crossing across the whole road at `x` (stripes run along the traffic, like in Switzerland). */
+export function createZebraCrossing(x: number): Group {
+  const crossing = new Group();
+  const paint = toon(0xf4f1e6);
+  for (let z = -CITY.curbZ + 0.5; z < CITY.curbZ - 0.3; z += 1) {
+    const stripe = box(3, 0.02, 0.5, paint);
+    stripe.position.set(x, 0.012, z);
+    crossing.add(stripe);
+  }
+  return crossing;
+}
+
+export interface Snail {
+  root: Group;
+  /** Two eye stalks; wiggle them with `rotation.x`. */
+  stalks: [Group, Group];
+}
+
+/** Garden snail with a spiral shell, crawling towards +z. */
+export function createSnail(): Snail {
+  const root = new Group();
+  const skin = toon(0xc9b48a);
+  const foot = box(0.07, 0.04, 0.24, skin);
+  foot.position.set(0, 0.02, 0.02);
+  const shell = new Mesh(new TorusGeometry(0.05, 0.035, 8, 16), toon(0xb5673a));
+  shell.position.set(0, 0.1, -0.02);
+  shell.rotation.y = Math.PI / 2;
+  const shellCore = sphere(0.04, toon(0x8a4a2a));
+  shellCore.position.copy(shell.position);
+  root.add(foot, shell, shellCore);
+  const stalks = [-1, 1].map((side) => {
+    const stalk = new Group();
+    stalk.position.set(side * 0.02, 0.04, 0.12);
+    const stem = cylinder(0.006, 0.008, 0.08, skin);
+    stem.position.y = 0.04;
+    const eye = sphere(0.012, toon(0x1a1a22));
+    eye.position.y = 0.085;
+    stalk.add(stem, eye);
+    stalk.rotation.z = side * 0.25;
+    root.add(stalk);
+    return stalk;
+  }) as [Group, Group];
+  return { root, stalks };
+}
+
 export interface Pigeon {
   root: Group;
   head: Group;

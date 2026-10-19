@@ -7,6 +7,7 @@ import {
   PlaneGeometry,
   Sprite,
   SpriteMaterial,
+  TorusGeometry,
   type ColorRepresentation,
   type Material,
   type MeshToonMaterial,
@@ -17,16 +18,21 @@ import {
   glow,
   GLOW_INTENSITY,
   profileBody,
+  sphere,
   textTexture,
   toon,
   type ProfilePoint,
 } from '../engine/build';
+import { createBanana } from './bananas';
 import { createWheel, frontPlate, sideMirror, slab, wheelArch } from './carParts';
 
 export interface B05 {
   root: Group;
   indicators: MeshToonMaterial[];
   sparkles: Sprite[];
+  wheels: Group[];
+  /** Rear glass hatch, hinged at the roof. Raise it with a positive `rotation.z`. */
+  tailgate: Group;
 }
 
 /** Side silhouette: short nose, steep windshield, roof sloping into a fastback tail. */
@@ -53,6 +59,8 @@ const SIDE_GLASS_PROFILE: ProfilePoint[] = [
 const BODY_WIDTH = 1.85;
 const BEVEL = 0.06;
 const SIDE_Z = BODY_WIDTH / 2;
+const TAILGATE_HINGE: ProfilePoint = [1.25, 1.46];
+export const B05_WHEEL_RADIUS = 0.36;
 
 /**
  * Leapmotor B05 stand-in built from primitives: sporty fastback, full-width light bars,
@@ -69,7 +77,11 @@ export function createB05(paint: ColorRepresentation): B05 {
   root.add(profileBody(BODY_PROFILE, BODY_WIDTH, paintMaterial, BEVEL));
   root.add(profileBody(SIDE_GLASS_PROFILE, BODY_WIDTH + 0.02, glass, 0));
   root.add(slab([-1.35, 1.03], [-0.6, 1.5], 1.62, 0.03, glass, BEVEL + 0.01));
-  root.add(slab([1.25, 1.46], [2.0, 1.05], 1.5, 0.03, glass, BEVEL + 0.01));
+  const tailgate = new Group();
+  tailgate.position.set(TAILGATE_HINGE[0], TAILGATE_HINGE[1], 0);
+  const rearGlass = slab([0, 0], [2.0 - TAILGATE_HINGE[0], 1.05 - TAILGATE_HINGE[1]], 1.5, 0.03, glass, BEVEL + 0.01);
+  tailgate.add(rearGlass);
+  root.add(tailgate);
   root.add(slab([-0.6, 1.5], [0.1, 1.55], 1.55, 0.02, trim, BEVEL + 0.01));
   root.add(slab([0.1, 1.55], [1.25, 1.46], 1.55, 0.02, trim, BEVEL + 0.01));
 
@@ -111,16 +123,17 @@ export function createB05(paint: ColorRepresentation): B05 {
   sharkFin.position.set(1.0, 1.58, 0);
   root.add(sharkFin);
 
-  for (const x of [-1.4, 1.4]) {
-    for (const side of [1, -1]) {
-      const wheel = createWheel({ radius: 0.36, width: 0.24, rimColor: 0xd8dde3, spokes: 5 });
-      wheel.position.set(x, 0.36, side * (SIDE_Z - 0.1));
+  const wheels = [-1.4, 1.4].flatMap((x) =>
+    [1, -1].map((side) => {
+      const wheel = createWheel({ radius: B05_WHEEL_RADIUS, width: 0.24, rimColor: 0xd8dde3, spokes: 5 });
+      wheel.position.set(x, B05_WHEEL_RADIUS, side * (SIDE_Z - 0.1));
       const arch = wheelArch(0.42, side * (SIDE_Z + 0.005));
       arch.position.x = x;
-      arch.position.y = 0.36;
+      arch.position.y = B05_WHEEL_RADIUS;
       root.add(wheel, arch);
-    }
-  }
+      return wheel;
+    }),
+  );
 
   const indicators = [-2.22, 2.22].flatMap((x) =>
     [-0.78, 0.78].map((z) => {
@@ -146,7 +159,116 @@ export function createB05(paint: ColorRepresentation): B05 {
     return sparkle;
   });
 
-  return { root, indicators, sparkles };
+  return { root, indicators, sparkles, wheels, tailgate };
+}
+
+export interface B05Cockpit {
+  root: Group;
+  steeringWheel: Group;
+  /** Banana air freshener hanging from the rear-view mirror; swing it with `rotation.x`/`rotation.z`. */
+  freshener: Group;
+  /** Bananas from the roof load, dangling into the top of the windshield. Hidden until loaded. */
+  roofBananas: Group;
+}
+
+const DASH_COLOR = 0x2a2a30;
+
+/**
+ * What Alain sees from the driver's seat. Parent it to the camera (camera looks down -z):
+ * the car body itself is hidden in this view, so the hood, pillars and dashboard are drawn here.
+ * The driver sits left, so the car's centre is ~0.38 m to the right (+x).
+ */
+export function createB05Cockpit(paint: ColorRepresentation): B05Cockpit {
+  const root = new Group();
+  const dash = toon(DASH_COLOR);
+  const centerX = 0.38;
+
+  const hood = box(1.9, 0.05, 1.6, toon(paint));
+  hood.position.set(centerX, -0.66, -1.85);
+  hood.rotation.x = -0.07;
+  const dashboard = box(2.0, 0.2, 0.5, dash);
+  dashboard.position.set(centerX, -0.46, -0.85);
+  const dashTop = box(2.0, 0.03, 0.3, toon(0x3a3a42));
+  dashTop.position.set(centerX, -0.35, -0.95);
+  root.add(hood, dashboard, dashTop);
+
+  // The B05's floating centre screen, showing the map.
+  const screen = box(0.34, 0.2, 0.02, toon(0x1f2f45, 0x0f2a45));
+  screen.position.set(centerX + 0.05, -0.27, -0.8);
+  screen.rotation.x = -0.15;
+  const mapRoad = box(0.025, 0.16, 0.005, toon(0x7fd0ff, 0x2a6a9a));
+  mapRoad.position.set(0, 0, 0.012);
+  mapRoad.rotation.z = 0.5;
+  screen.add(mapRoad);
+  root.add(screen);
+
+  for (const x of [centerX - 1.1, centerX + 1.1]) {
+    const pillar = box(0.07, 1.1, 0.07, dash);
+    pillar.position.set(x, -0.02, -0.95);
+    pillar.rotation.x = 0.55;
+    pillar.rotation.z = Math.sign(x - centerX) * -0.12;
+    root.add(pillar);
+  }
+  const headliner = box(2.1, 0.08, 0.5, toon(0x4a4a52));
+  headliner.position.set(centerX, 0.46, -0.35);
+  const mirrorStalk = box(0.03, 0.08, 0.03, dash);
+  mirrorStalk.position.set(centerX, 0.39, -0.52);
+  const rearMirror = box(0.26, 0.08, 0.03, dash);
+  rearMirror.position.set(centerX, 0.33, -0.52);
+  const mirrorGlass = box(0.23, 0.06, 0.005, toon(0x9fc4e8));
+  mirrorGlass.position.set(centerX, 0.33, -0.535);
+  root.add(headliner, mirrorStalk, rearMirror, mirrorGlass);
+
+  const freshener = new Group();
+  freshener.position.set(centerX + 0.06, 0.29, -0.52);
+  const string = box(0.004, 0.12, 0.004, toon(0x5a5a62));
+  string.position.y = -0.06;
+  const banana = createBanana();
+  banana.position.y = -0.14;
+  banana.scale.setScalar(0.45);
+  freshener.add(string, banana);
+  root.add(freshener);
+
+  const steeringWheel = new Group();
+  steeringWheel.position.set(0, -0.4, -0.52);
+  steeringWheel.rotation.x = -0.35;
+  const rim = new Mesh(new TorusGeometry(0.17, 0.022, 8, 28), dash);
+  const hub = cylinder(0.05, 0.05, 0.04, toon(0x3a3a42));
+  hub.rotation.x = Math.PI / 2;
+  steeringWheel.add(rim, hub);
+  for (const angle of [Math.PI / 2 + 0.3, Math.PI / 2 - 0.3 + Math.PI, -Math.PI / 2]) {
+    const spoke = box(0.15, 0.025, 0.02, dash);
+    spoke.position.set(Math.cos(angle) * 0.08, Math.sin(angle) * 0.08, 0);
+    spoke.rotation.z = angle;
+    steeringWheel.add(spoke);
+  }
+  // Hands at ten to two, in the same blue sleeves as the walking POV.
+  for (const side of [-1, 1]) {
+    const hand = sphere(0.04, toon(0xf5c9a0));
+    hand.position.set(side * 0.15, 0.08, 0.02);
+    hand.scale.set(1, 1.2, 0.9);
+    const sleeve = cylinder(0.045, 0.05, 0.3, toon(0x2f4f7f));
+    sleeve.position.set(side * 0.2, -0.05, 0.12);
+    sleeve.rotation.set(1.1, 0, side * 0.5);
+    steeringWheel.add(hand, sleeve);
+  }
+  root.add(steeringWheel);
+
+  const roofBananas = new Group();
+  roofBananas.visible = false;
+  for (let index = 0; index < 5; index++) {
+    const dangling = createBanana();
+    dangling.position.set(centerX - 0.7 + index * 0.33, 0.62 - (index % 2) * 0.05, -1.05);
+    dangling.rotation.set(0, 0.3 * index, Math.PI + (index % 2 === 0 ? 0.4 : -0.3));
+    roofBananas.add(dangling);
+  }
+  root.add(roofBananas);
+
+  root.traverse((node) => {
+    node.castShadow = false;
+    node.receiveShadow = false;
+  });
+  return { root, steeringWheel, freshener, roofBananas };
 }
 
 /**

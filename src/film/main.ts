@@ -1,9 +1,12 @@
 import { SoundBoard } from './engine/audio';
 import { Callouts } from './engine/callouts';
+import { ChoicePanel } from './engine/choices';
 import { Stage } from './engine/stage';
+import { Story } from './engine/story';
 import type { Timeline } from './engine/timeline';
-import { buildScene01, SCENE01_DURATION_SECONDS } from './scenes/scene01Challenge';
+import { playAlleinZuhaus } from './scenes/alleinZuhaus';
 import { buildTitleScene } from './scenes/titleScene';
+import { createWorld } from './scenes/world';
 
 function requireElement(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -16,6 +19,7 @@ function requireElement(id: string): HTMLElement {
 const stageHost = requireElement('stage');
 const titleCard = requireElement('title-card');
 const endCard = requireElement('end-card');
+const endTitle = requireElement('end-title');
 const errorBox = requireElement('error');
 
 function showError(message: string, error: unknown): void {
@@ -26,35 +30,43 @@ function showError(message: string, error: unknown): void {
 try {
   const stage = new Stage(stageHost);
   const callouts = new Callouts(requireElement('callouts'), stage.camera);
-  let timeline: Timeline | undefined;
+  const choices = new ChoicePanel(requireElement('choice'));
   let titleTimeline: Timeline | undefined = buildTitleScene(stage);
+  let story: Story | undefined;
   let sounds: SoundBoard | undefined;
 
   const play = () => {
     try {
       titleTimeline = undefined;
+      story?.stop();
       sounds?.close();
+      choices.clear();
       callouts.clear();
       stage.reset();
       sounds = new SoundBoard();
-      timeline = buildScene01(stage, sounds, callouts);
+      const currentStory = new Story(choices.present);
+      story = currentStory;
+      const world = createWorld(stage, sounds, callouts);
       titleCard.hidden = true;
       endCard.hidden = true;
+      playAlleinZuhaus(currentStory, world).then(
+        (endingTitle) => {
+          if (story === currentStory) {
+            endTitle.textContent = endingTitle;
+            endCard.hidden = false;
+          }
+        },
+        (error: unknown) => showError('Film ist abgebrochen', error),
+      );
     } catch (error) {
-      showError('Szene konnte nicht gestartet werden', error);
+      showError('Film konnte nicht gestartet werden', error);
     }
   };
 
   stage.onFrame((deltaSeconds) => {
     titleTimeline?.advance(deltaSeconds);
-    if (!timeline) {
-      return;
-    }
-    timeline.advance(deltaSeconds);
+    story?.advance(deltaSeconds);
     callouts.update(deltaSeconds);
-    if (timeline.time >= SCENE01_DURATION_SECONDS) {
-      endCard.hidden = false;
-    }
   });
 
   requireElement('play').addEventListener('click', play);
