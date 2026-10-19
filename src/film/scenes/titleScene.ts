@@ -1,19 +1,26 @@
 import { Vector3 } from 'three';
 import { createB05, createSparkle } from '../assets/b05';
-import { CITY, createCity, MIGROS } from '../assets/city';
+import { CITY, createCity, MIGROS, RAILWAY } from '../assets/city';
 import { createDog, createPasserby, createSchoolkid, walkCycle, type PasserbyLook } from '../assets/people';
-import { createPigeon, furnishStreet } from '../assets/streetFurniture';
+import { createPigeon, createTrain, furnishStreet } from '../assets/streetFurniture';
 import { setOutlineThickness } from '../engine/build';
 import type { Stage } from '../engine/stage';
-import { ease, Timeline } from '../engine/timeline';
+import { ease, lerp, Timeline } from '../engine/timeline';
 
 /** Long enough that nobody waits that long on the title screen; the loops simply stop then. */
 const TITLE_LOOP_SECONDS = 3600;
 const OUTLINE = { background: 0.0022, character: 0.005 } as const;
 
-const CAMERA_POSITION = new Vector3(8.5, 2.3, 7.5);
-const CAMERA_TARGET = new Vector3(18, 2.6, -9);
-const CAMERA_FOV = 55;
+/** Migros on the left, then the square and the station on the right, the railway bridge at the edge. */
+const CAMERA_POSITION = new Vector3(8.5, 2.6, 7.5);
+const CAMERA_TARGET = new Vector3(28, 4, -12);
+const CAMERA_FOV = 60;
+
+/** The train comes over the bridge from the near side and pulls into the station (towards -z). */
+const TRAIN_START_Z = 120;
+const TRAIN_STOP_Z = -110;
+const TRAIN_ARRIVAL_SECONDS = 10;
+const TRAIN_CYCLE_SECONDS = 14;
 
 /** B05 parked in the outer far lane right in front of the Migros. */
 const B05_POSITION = new Vector3(15.5, 0, CITY.farOuterLaneZ);
@@ -33,7 +40,8 @@ const SHOPPERS: { look: PasserbyLook; x: number; z: number; yaw: number }[] = [
 ];
 
 /**
- * Title still: the Migros Neuwiesen across Zürcherstrasse. A man has walked face-first into
+ * Title still: the Migros Neuwiesen across Zürcherstrasse; to its right the square and Winterthur
+ * station, a train pulling in over the bridge. A man has walked face-first into
  * the shop window, a school class squeezes through the sliding doors (the last one waves),
  * another group gawks at the B05 parked in front — with a pigeon claiming its roof.
  */
@@ -42,7 +50,6 @@ export function buildTitleScene(stage: Stage): Timeline {
   const timeline = new Timeline();
   const city = createCity(scene);
   city.root.add(furnishStreet());
-  setOutlineThickness(city.root, OUTLINE.background);
   const [leftDoor, rightDoor] = city.migrosDoors;
   leftDoor.position.x = MIGROS.doorX - 1.7;
   rightDoor.position.x = MIGROS.doorX + 1.7;
@@ -51,6 +58,14 @@ export function buildTitleScene(stage: Stage): Timeline {
   camera.lookAt(CAMERA_TARGET);
   camera.fov = CAMERA_FOV;
   camera.updateProjectionMatrix();
+
+  setOutlineThickness(city.root, OUTLINE.background);
+
+  // Crosses the bridge, brakes into the station, then the next one comes.
+  const train = createTrain({ body: 0xffffff, stripe: 0x2f5fa5, doors: 0xd52b1e, label: 'S12', cars: 3 });
+  train.rotation.y = Math.PI;
+  train.position.set(RAILWAY.trackX[0], RAILWAY.deckY, TRAIN_START_Z);
+  scene.add(train);
 
   const b05 = createB05(0x2f7fe0);
   b05.root.position.copy(B05_POSITION);
@@ -150,6 +165,8 @@ export function buildTitleScene(stage: Stage): Timeline {
   );
 
   timeline.tween(0, TITLE_LOOP_SECONDS, (_progress, elapsed) => {
+    const arrival = Math.min(1, (elapsed % TRAIN_CYCLE_SECONDS) / TRAIN_ARRIVAL_SECONDS);
+    train.position.z = lerp(TRAIN_START_Z, TRAIN_STOP_Z, ease.out(arrival));
     windowVictim.dizzyStars.rotation.y = elapsed * 5;
     windowVictim.root.rotation.z = Math.sin(elapsed * 2.5) * 0.05;
     hopper.root.position.y = Math.abs(Math.sin(elapsed * 6)) * 0.12;
