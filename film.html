@@ -3,23 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Auf dem Weg zur Migros (Winti)</title>
+    <title>Alain allein zuhaus</title>
     <link rel="stylesheet" href="/src/film/film.css" />
   </head>
   <body>
     <main class="film">
       <div id="stage" class="film__stage"></div>
       <div id="callouts" class="film__callouts" aria-hidden="true"></div>
+      <section id="choice" class="film__choice" aria-live="polite" hidden></section>
 
       <section id="title-card" class="film__card film__card--title">
         <div class="film__sign">
-          <h1 class="film__title">Auf dem Weg zur Migros (Winti)</h1>
+          <h1 class="film__title">Alain allein zuhaus</h1>
         </div>
         <button id="play" class="film__button" type="button">▶ Start</button>
       </section>
 
       <section id="end-card" class="film__card film__card--end" hidden>
-        <h2 class="film__title">Fortsetzung folgt …</h2>
+        <h2 id="end-title" class="film__title">Fortsetzung folgt …</h2>
         <button id="replay" class="film__button" type="button">↺ Nochmal</button>
       </section>
 

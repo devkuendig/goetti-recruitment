@@ -99,6 +99,75 @@ export class SoundBoard {
     this.whistleSweep([1000, 2500, 800], now + 0.42, 0.7);
   }
 
+  /** Two-tone car horn: TÜÜÜT. */
+  horn(): void {
+    const now = this.context.currentTime;
+    this.tone('square', 415, 415, now, 0.7, 0.07);
+    this.tone('square', 523, 523, now, 0.7, 0.06);
+  }
+
+  /** Electric motor whine rising with speed — the B05 makes no engine noise. */
+  electricWhir(durationSeconds: number): void {
+    const now = this.context.currentTime;
+    this.tone('sine', 140, 620, now, durationSeconds, 0.05);
+    this.tone('sine', 280, 1240, now, durationSeconds, 0.015);
+  }
+
+  /** Roller garage door clattering upwards. */
+  garageDoor(durationSeconds: number): void {
+    const now = this.context.currentTime;
+    for (let clack = 0; clack < durationSeconds; clack += 0.09) {
+      this.noiseHit(now + clack, 'bandpass', 500 + Math.random() * 300, 0.06, 0.12, this.master);
+    }
+  }
+
+  /** Light switch, laptop lid, key hook. */
+  click(): void {
+    const now = this.context.currentTime;
+    this.tone('square', 2200, 1400, now, 0.03, 0.08);
+  }
+
+  plop(): void {
+    const now = this.context.currentTime;
+    this.tone('sine', 700, 160, now, 0.14, 0.35);
+  }
+
+  munch(): void {
+    const now = this.context.currentTime;
+    this.noiseHit(now, 'bandpass', 900, 0.1, 0.3, this.master);
+    this.noiseHit(now + 0.18, 'bandpass', 750, 0.1, 0.25, this.master);
+  }
+
+  whoosh(): void {
+    const now = this.context.currentTime;
+    this.noiseHit(now, 'bandpass', 1300, 0.35, 0.25, this.master);
+  }
+
+  /** Toddler crying: three wobbly falling wails. */
+  sob(): void {
+    const now = this.context.currentTime;
+    for (let wail = 0; wail < 3; wail++) {
+      this.tone('triangle', 620, 430, now + wail * 0.55, 0.45, 0.12);
+    }
+  }
+
+  /** Toddler squeal of delight, rising. */
+  squeal(): void {
+    const now = this.context.currentTime;
+    this.whistleSweep([700, 1600, 1400, 1900], now, 0.6);
+  }
+
+  /** Little brass-ish fanfare for the happy end. */
+  fanfare(): void {
+    const now = this.context.currentTime;
+    [523, 659, 784].forEach((frequency, index) => {
+      this.tone('square', frequency, frequency, now + index * 0.16, 0.14, 0.06);
+    });
+    for (const frequency of [523, 659, 784, 1047]) {
+      this.tone('square', frequency, frequency, now + 0.5, 0.9, 0.04);
+    }
+  }
+
   /**
    * Boom-bap hip-hop loop from the tuned car: swung hats, kick, snare, bass and a
    * minor-chord stab. Returns a volume control so the scene can fade it with the
