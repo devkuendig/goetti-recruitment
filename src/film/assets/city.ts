@@ -47,7 +47,14 @@ export const MIGROS = {
   facadeZ: -FACADE_Z,
 } as const;
 
-/** Railway bridge across the far end of the street (towards the station). Trains run along z. */
+/** Winterthur station on the far side, past the square after the Migros, next to the railway. */
+export const STATION = {
+  startX: 40,
+  endX: 72,
+  frontZ: -15,
+} as const;
+
+/** Railway bridge across the far end of the street, beside the station. Trains run along z. */
 export const RAILWAY = {
   frontX: 76,
   backX: 84,
@@ -95,6 +102,10 @@ export function createCity(scene: Scene): City {
   const migros = createMigros();
   root.add(migros.root);
   root.add(createRailwayBridge());
+  root.add(createStationSquare());
+  const station = createStation();
+  station.position.set((STATION.startX + STATION.endX) / 2, 0, STATION.frontZ);
+  root.add(station);
   for (const x of [-22, -10, 12, 24]) {
     root.add(createTree(x, FACADE_Z - 0.7));
     root.add(createTree(x + 5, -(FACADE_Z - 0.7)));
@@ -199,8 +210,8 @@ function createBuildingRow(side: 1 | -1): Group {
   while (x < 70) {
     const reachesMigros = side === -1 && x < MIGROS.endX;
     if (reachesMigros && x >= MIGROS.startX) {
-      x = MIGROS.endX;
-      continue;
+      // Past the Migros the far side opens onto the station square — no more houses.
+      break;
     }
     const naturalWidth = 7 + ((index * 3) % 4);
     // The last house before the Migros is trimmed so the two don't overlap.
@@ -274,12 +285,70 @@ function createMigros(): { root: Group; doors: [Mesh, Mesh] } {
   return { root, doors };
 }
 
+/** Open, paved square between the Migros and the station, up to the railway bridge. */
+function createStationSquare(): Group {
+  const batch = new GeometryBatch();
+  const startX = MIGROS.endX;
+  const endX = RAILWAY.frontX;
+  const nearZ = -FACADE_Z;
+  const farZ = -40;
+  batch.box([endX - startX, 0.2, nearZ - farZ], 0xe0d8c8, [(startX + endX) / 2, 0, (nearZ + farZ) / 2]);
+  for (let x = startX + 1.5; x < endX; x += 1.5) {
+    batch.box([0.03, 0.005, nearZ - farZ], 0xccc3b2, [x, 0.1, (nearZ + farZ) / 2]);
+  }
+  const square = batch.build();
+  square.add(createTree(startX + 4, -12), createTree(startX + 8, -15));
+  return square;
+}
+
+/** Winterthur main station building. Origin = centre of the front at ground level, facing +z. */
+function createStation(): Group {
+  const batch = new GeometryBatch();
+  const width = STATION.endX - STATION.startX;
+  const depth = 12;
+  const height = 16.5;
+  const front = 0.03;
+  batch.box([width, height, depth], 0xe3d6b8, [0, height / 2, -depth / 2]);
+  batch.box([width + 0.4, 0.6, depth + 0.4], 0xbfae8c, [0, height + 0.3, -depth / 2]);
+  for (let column = -2; column <= 2; column++) {
+    const x = column * 6;
+    batch.box([2.8, 4.6, 0.06], 0x41618a, [x, 3.6, front]);
+    batch.box([2.8, 3, 0.08], 0x41618a, [x, 9.4, front]);
+    batch.box([3.2, 0.18, 0.1], 0xbfae8c, [x, 7.6, front + 0.02]);
+  }
+  const station = batch.build();
+
+  const name = createLabel('WINTERTHUR', 14, 1.9, {
+    width: 1024,
+    height: 140,
+    font: 'bold 100px "Helvetica Neue", Arial, sans-serif',
+    color: '#1a1a22',
+    background: '#e3d6b8',
+  });
+  name.position.set(0, 14.6, front + 0.05);
+
+  const clock = new Group();
+  const clockFace = cylinder(1.1, 1.1, 0.12, toon(0xffffff));
+  clockFace.rotation.x = Math.PI / 2;
+  const hourHand = box(0.6, 0.08, 0.06, toon(0x1a1a22));
+  hourHand.position.set(-0.25, 0.08, 0.08);
+  const minuteHand = box(0.08, 0.9, 0.06, toon(0x1a1a22));
+  minuteHand.position.set(0, 0.4, 0.08);
+  const secondHand = box(0.04, 0.9, 0.05, toon(0xd52b1e));
+  secondHand.position.set(0.12, 0.35, 0.1);
+  secondHand.rotation.z = -0.4;
+  clock.add(clockFace, hourHand, minuteHand, secondHand);
+  clock.position.set(11, 12.4, front + 0.1);
+  station.add(name, clock);
+  return station;
+}
+
 /** Railway bridge across the far end of the street; trains cross along z on `RAILWAY.trackX`. */
 function createRailwayBridge(): Group {
   const batch = new GeometryBatch();
   const centerX = (RAILWAY.frontX + RAILWAY.backX) / 2;
   const depth = RAILWAY.backX - RAILWAY.frontX;
-  const span = 160;
+  const span = 300;
   const deckThickness = 0.8;
   batch.box([depth, deckThickness, span], 0x9a958c, [centerX, RAILWAY.deckY - deckThickness / 2, 0]);
   // Abutments either side of the underpass; the street runs through between them.
@@ -300,7 +369,7 @@ function createRailwayBridge(): Group {
     batch.box([0.03, 0.03, span], 0x2a2a30, [trackX, RAILWAY.deckY + 5.6, 0]);
   }
   // Catenary masts with a cross arm over both tracks.
-  for (let z = -70; z <= 70; z += 20) {
+  for (let z = -140; z <= 140; z += 20) {
     batch.box([0.25, 6.4, 0.25], 0x6a6a70, [RAILWAY.frontX + 0.6, RAILWAY.deckY + 3.2, z]);
     batch.box([depth - 1.2, 0.15, 0.15], 0x6a6a70, [centerX, RAILWAY.deckY + 5.8, z]);
   }
