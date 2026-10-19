@@ -3,7 +3,7 @@ import { box, cylinder, sphere, textTexture, toon } from '../engine/build';
 import { CITY } from './city';
 import { createWheel } from './carParts';
 
-/** Benches, bikes, bins & co. Placed clear of Alain's walk (z ≈ 5.3) and the gawker's path (z ≈ 4.3). */
+/** Benches, bikes, bins & co. Placed clear of Alain's walk (z ≈ 8.3) and the gawker's path (z ≈ 7.3). */
 export function furnishStreet(): Group {
   const street = new Group();
   const place = (object: Group, x: number, z: number, rotationY = 0) => {
@@ -12,23 +12,23 @@ export function furnishStreet(): Group {
     street.add(object);
   };
 
-  place(createBench(), -9, 7.0, Math.PI);
-  place(createBench(), 14, -7.0);
+  place(createBench(), -9, 10.0, Math.PI);
+  place(createBench(), 14, -10.0);
   for (const x of [-13, -6.8, 1.6, 10.5]) {
-    place(createFlowerBox(), x, 7.2);
+    place(createFlowerBox(), x, 10.2);
   }
   for (const x of [-15, -3, 8.5, 18]) {
-    place(createFlowerBox(), x, -7.2);
+    place(createFlowerBox(), x, -10.2);
   }
-  place(createBike(0x2fa4d9), -2.4, 6.95, 0.15);
-  place(createBike(0xe2453b), -1.5, 7.0, -0.1);
-  place(createBike(0xf2c230), 11.5, -6.95, Math.PI + 0.1);
-  place(createTrashCan(), -11, 3.85);
-  place(createTrashCan(), 9.5, -3.85);
-  place(createParkingMeter(), -0.2, 3.8);
-  place(createHydrant(), 7.6, 3.85);
-  place(createHydrant(), -8, -3.85);
-  place(createBusStop(), -18, -5.6);
+  place(createBike(0x2fa4d9), -2.4, 9.95, 0.15);
+  place(createBike(0xe2453b), -1.5, 10.0, -0.1);
+  place(createBike(0xf2c230), 11.5, -9.95, Math.PI + 0.1);
+  place(createTrashCan(), -11, 6.85);
+  place(createTrashCan(), 9.5, -6.85);
+  place(createParkingMeter(), -0.2, 6.8);
+  place(createHydrant(), 7.6, 6.85);
+  place(createHydrant(), -8, -6.85);
+  place(createBusStop(), -18, -8.6);
   return street;
 }
 
@@ -222,6 +222,64 @@ export function createBus(): Bus {
   );
   root.position.z = CITY.farLaneZ;
   return { root, wheels };
+}
+
+export interface TrainLivery {
+  body: number;
+  stripe: number;
+  doors: number;
+  label: string;
+  cars: number;
+}
+
+const TRAIN_CAR_LENGTH = 24;
+const TRAIN_CAR_GAP = 0.6;
+
+/** Passenger train running along z. Origin = front nose, cars trail behind in -z. */
+export function createTrain(livery: TrainLivery): Group {
+  const root = new Group();
+  const length = TRAIN_CAR_LENGTH;
+  for (let car = 0; car < livery.cars; car++) {
+    const carGroup = new Group();
+    carGroup.position.z = -car * (length + TRAIN_CAR_GAP) - length / 2;
+    const body = box(3, 3.4, length, toon(livery.body));
+    body.position.y = 2.4;
+    const underframe = box(2.6, 0.7, length - 2, toon(0x2a2a30));
+    underframe.position.y = 0.45;
+    const windowBand = box(3.04, 0.9, length - 3, toon(0x1d2a3a));
+    windowBand.position.y = 2.8;
+    const stripe = box(3.04, 0.35, length, toon(livery.stripe));
+    stripe.position.y = 1.35;
+    const roof = box(2.6, 0.3, length - 1, toon(0xb5b5b8));
+    roof.position.y = 4.25;
+    carGroup.add(body, underframe, windowBand, stripe, roof);
+    for (const doorZ of [-length * 0.3, length * 0.3]) {
+      const door = box(3.06, 2.3, 1.3, toon(livery.doors));
+      door.position.set(0, 1.95, doorZ);
+      carGroup.add(door);
+    }
+    for (const side of [-1, 1]) {
+      const label = textPlate(livery.label, 3, 0.5, { color: '#ffffff', background: '#1d2a3a' });
+      label.position.set(side * 1.53, 3.75, 0);
+      label.rotation.y = (side * Math.PI) / 2;
+      carGroup.add(label);
+    }
+    root.add(carGroup);
+  }
+  const windshield = box(2.6, 1.2, 0.05, toon(0x1d2a3a));
+  windshield.position.set(0, 3.0, 0.03);
+  const headlights = [-0.9, 0.9].map((x) => {
+    const light = box(0.3, 0.2, 0.05, toon(0xfff3b0, 0xfff3b0));
+    light.position.set(x, 1.4, 0.03);
+    return light;
+  });
+  const pantograph = box(1.6, 0.08, 0.08, toon(0x3a3a40));
+  pantograph.position.set(0, 4.9, -length * 0.4);
+  const pantographArm = box(0.06, 0.8, 0.06, toon(0x3a3a40));
+  pantographArm.position.set(0, 4.5, -length * 0.4);
+  pantographArm.rotation.x = 0.4;
+  root.add(windshield, ...headlights, pantograph, pantographArm);
+  return root;
 }
 
 export interface Pigeon {

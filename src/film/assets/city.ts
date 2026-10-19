@@ -15,50 +15,71 @@ import {
   Vector3,
   type Scene,
 } from 'three';
-import { box, cylinder, GeometryBatch, profileBody, sphere, textTexture, toon } from '../engine/build';
+import { box, cylinder, GeometryBatch, sphere, textTexture, toon } from '../engine/build';
 import { createSparkle } from './b05';
 
-/** Street runs along x. Road z ∈ [-3.5, 3.5], sidewalks out to |z| = 7.5, buildings beyond. */
+/**
+ * Street runs along x. Road z ∈ [-6.5, 6.5] with two 3 m lanes per direction
+ * (traffic towards +x on z > 0, towards -x on z < 0), sidewalks out to |z| = 10.5, buildings beyond.
+ * The B05's painted parking bay sits in the outer +z lane.
+ */
 export const CITY = {
-  sidewalkZ: 5.3,
-  curbZ: 3.5,
-  farLaneZ: -1.75,
-  parkingZ: 2.4,
+  sidewalkZ: 8.3,
+  curbZ: 6.5,
+  laneWidth: 3,
+  farLaneZ: -1.5,
+  farOuterLaneZ: -4.5,
+  parkingZ: 5.3,
 } as const;
 
 export const LAMP_POST_X = -5;
 
-const FACADE_Z = 7.5;
+const FACADE_Z = 10.5;
+
+/**
+ * Migros on the left side of Zürcherstrasse (seen from Alain, walking +x towards the station).
+ * The building spans x ∈ [startX, endX] in the far building row (z < 0).
+ */
+export const MIGROS = {
+  startX: 8,
+  endX: 28,
+  doorX: 20,
+  facadeZ: -FACADE_Z,
+} as const;
+
+/** Railway bridge across the far end of the street (towards the station). Trains run along z. */
+export const RAILWAY = {
+  frontX: 76,
+  backX: 84,
+  deckY: 5.6,
+  trackX: [78.5, 81.5],
+} as const;
+
 const BUILDING_DEPTH = 8;
 const FLOOR_HEIGHT = 3;
 const SKY_HORIZON = new Color(0xe6f5ff);
 const SKY_ZENITH = new Color(0x56aef0);
 const SUN_DIRECTION = new Vector3(20, 30, 15).normalize();
 
-const BUILDING_COLORS = [0xf6c6a8, 0xa8d8c8, 0xf3e3a1, 0xc9b8e8, 0xf2a9a0, 0xb5d3f0, 0xf7dcc0];
-const SHUTTER_COLORS = [0x3f8a5a, 0x3a6ea5, 0xb5473a, 0x8a6a3a];
+/** Sober Winterthur plaster tones — beige, sandstone, light grey. */
+const BUILDING_COLORS = [0xe8e2d6, 0xd9d4cc, 0xefe6d2, 0xcfd3d6, 0xe6d8c3, 0xdcdcd4, 0xf0ebe0];
+const SHUTTER_COLORS = [0x3f6a4a, 0x5a6b7a, 0x6b5a4a, 0x4a5a6a];
 const AWNING_COLORS: [number, number][] = [
-  [0xe2453b, 0xffffff],
-  [0x2f7f5f, 0xfff4d6],
-  [0x2f5fa5, 0xffffff],
-  [0xf2a33a, 0x7a3b1c],
+  [0x6b6b70, 0xe9e2d6],
+  [0x3f6a4a, 0xe9e2d6],
+  [0x7a3b2c, 0xe9e2d6],
+  [0x3a4a6a, 0xe9e2d6],
 ];
-/** Shop names along the street — local flavour, a few puns. */
-const SHOP_NAMES = [
-  'BÄCKEREI BRÖTLI & SÖHNLI',
-  'COIFFEUR HAARGENAU',
-  'KEBAB WINTI',
-  'CHÄSLADE',
-  'VELO MÜLLER',
-  'BLUEME BLÜEMLI',
-  'KIOSK ZUM GLÜCK',
-];
+const SHOP_NAMES = ['APOTHEKE', 'BÄCKEREI', 'COIFFEUR', 'KIOSK', 'OPTIK', 'CAFÉ', 'VELOS'];
+const MIGROS_ORANGE = 0xff6600;
 
 export interface City {
   root: Group;
   lampPost: Group;
   clouds: Group[];
   catTail: Group;
+  /** Sliding entrance doors, left and right panel. Slide them apart along x to open. */
+  migrosDoors: [Mesh, Mesh];
 }
 
 export function createCity(scene: Scene): City {
@@ -71,9 +92,12 @@ export function createCity(scene: Scene): City {
   root.add(createGround());
   root.add(createBuildingRow(1));
   root.add(createBuildingRow(-1));
+  const migros = createMigros();
+  root.add(migros.root);
+  root.add(createRailwayBridge());
   for (const x of [-22, -10, 12, 24]) {
-    root.add(createTree(x, 6.8));
-    root.add(createTree(x + 5, -6.8));
+    root.add(createTree(x, FACADE_Z - 0.7));
+    root.add(createTree(x + 5, -(FACADE_Z - 0.7)));
   }
   const lampPost = createLampPost();
   lampPost.position.set(LAMP_POST_X, 0, CITY.curbZ + 0.4);
@@ -91,7 +115,7 @@ export function createCity(scene: Scene): City {
   });
 
   scene.add(root);
-  return { root, lampPost, clouds, catTail: cat.tail };
+  return { root, lampPost, clouds, catTail: cat.tail, migrosDoors: migros.doors };
 }
 
 function addLighting(scene: Scene): void {
@@ -140,17 +164,22 @@ function createSkyDome(): Group {
 
 function createGround(): Group {
   const batch = new GeometryBatch();
-  batch.box([200, 0.1, 7], 0x5b6070, [0, -0.05, 0]);
+  const sidewalkWidth = FACADE_Z - CITY.curbZ;
+  const sidewalkCenter = CITY.curbZ + sidewalkWidth / 2;
+  batch.box([200, 0.1, CITY.curbZ * 2], 0x5b6070, [0, -0.05, 0]);
   for (const side of [1, -1]) {
-    batch.box([200, 0.2, 4], 0xd9d2c5, [0, 0, side * 5.5]);
-    batch.box([200, 0.22, 0.2], 0xb9b2a5, [0, 0, side * 3.55]);
+    batch.box([200, 0.2, sidewalkWidth], 0xd9d2c5, [0, 0, side * sidewalkCenter]);
+    batch.box([200, 0.22, 0.2], 0xb9b2a5, [0, 0, side * (CITY.curbZ + 0.05)]);
     // Paving joints so the sidewalk doesn't read as one flat slab.
     for (let x = -100; x < 100; x += 1.5) {
-      batch.box([0.03, 0.005, 3.9], 0xc4bcae, [x, 0.1, side * 5.5]);
+      batch.box([0.03, 0.005, sidewalkWidth - 0.1], 0xc4bcae, [x, 0.1, side * sidewalkCenter]);
     }
-  }
-  for (let x = -100; x < 100; x += 6) {
-    batch.box([3, 0.02, 0.18], 0xeeeee4, [x, 0.01, 0]);
+    // Dashed divider between the two lanes of one direction.
+    for (let x = -100; x < 100; x += 6) {
+      batch.box([3, 0.02, 0.15], 0xeeeee4, [x, 0.01, side * CITY.laneWidth]);
+    }
+    // Solid double centre line between the two directions.
+    batch.box([200, 0.02, 0.12], 0xeeeee4, [0, 0.01, side * 0.12]);
   }
   // Painted parking bay around the B05.
   for (const x of [0.4, 5.6]) {
@@ -168,12 +197,19 @@ function createBuildingRow(side: 1 | -1): Group {
   let x = -60;
   let index = side === 1 ? 0 : 3;
   while (x < 70) {
-    const width = 7 + ((index * 3) % 4);
+    const reachesMigros = side === -1 && x < MIGROS.endX;
+    if (reachesMigros && x >= MIGROS.startX) {
+      x = MIGROS.endX;
+      continue;
+    }
+    const naturalWidth = 7 + ((index * 3) % 4);
+    // The last house before the Migros is trimmed so the two don't overlap.
+    const width = reachesMigros ? Math.min(naturalWidth, MIGROS.startX - x) : naturalWidth;
     const height = 9 + ((index * 5) % 7);
     const centerX = x + width / 2;
     const wallColor = BUILDING_COLORS[index % BUILDING_COLORS.length];
     batch.box([width, height, BUILDING_DEPTH], wallColor, [centerX, height / 2, side * (FACADE_Z + BUILDING_DEPTH / 2)]);
-    addRoof(batch, centerX, width, height, side, index);
+    addRoof(batch, centerX, width, height, side);
     addShopFront(batch, row, centerX, width, front, outward, index);
     addWindows(batch, x, width, height, front, outward, index);
     x += width;
@@ -183,27 +219,92 @@ function createBuildingRow(side: 1 | -1): Group {
   return row;
 }
 
-function addRoof(batch: GeometryBatch, centerX: number, width: number, height: number, side: number, index: number): void {
+/** Flat roof with a cornice, as along Zürcherstrasse. */
+function addRoof(batch: GeometryBatch, centerX: number, width: number, height: number, side: number): void {
   const depthCenter = side * (FACADE_Z + BUILDING_DEPTH / 2);
-  if (index % 2 === 0) {
-    const halfDepth = BUILDING_DEPTH / 2 + 0.3;
-    const roof = profileBody(
-      [
-        [-halfDepth, 0],
-        [halfDepth, 0],
-        [0, 2.6],
-      ],
-      width + 0.3,
-      toon(0xffffff),
-      0,
-    );
-    roof.geometry.rotateY(Math.PI / 2);
-    roof.geometry.translate(centerX, height, depthCenter);
-    batch.add(roof.geometry, index % 4 === 0 ? 0xc8553d : 0x5a6b7a);
-    batch.box([0.5, 1.2, 0.5], 0xa04a3a, [centerX + width * 0.25, height + 1.8, depthCenter + side * 1.5]);
-  } else {
-    batch.box([width + 0.2, 0.35, BUILDING_DEPTH + 0.2], 0xe9e2d6, [centerX, height + 0.17, depthCenter]);
+  batch.box([width + 0.2, 0.35, BUILDING_DEPTH + 0.2], 0xc9c2b6, [centerX, height + 0.17, depthCenter]);
+}
+
+/** Wide, flat Migros store: orange band, big glazed front, sliding doors at `MIGROS.doorX`. */
+function createMigros(): { root: Group; doors: [Mesh, Mesh] } {
+  const root = new Group();
+  const batch = new GeometryBatch();
+  const width = MIGROS.endX - MIGROS.startX;
+  const centerX = (MIGROS.startX + MIGROS.endX) / 2;
+  const height = 7;
+  const surface = MIGROS.facadeZ + 0.03;
+  batch.box([width, height, BUILDING_DEPTH], 0xf2f0ec, [centerX, height / 2, MIGROS.facadeZ - BUILDING_DEPTH / 2]);
+  batch.box([width + 0.2, 0.35, BUILDING_DEPTH + 0.2], 0xc9c2b6, [centerX, height + 0.17, MIGROS.facadeZ - BUILDING_DEPTH / 2]);
+  batch.box([width, 0.9, 0.1], MIGROS_ORANGE, [centerX, 6.2, surface]);
+  batch.box([width - 2, 0.7, 0.06], 0x41618a, [centerX, 5.1, surface]);
+  batch.box([width - 2, 2.6, 0.06], 0x8fb8d8, [centerX, 1.5, surface]);
+  for (let mullionX = MIGROS.startX + 1; mullionX <= MIGROS.endX - 1; mullionX += 2) {
+    batch.box([0.08, 2.6, 0.1], 0x5a5a62, [mullionX, 1.5, surface + 0.02]);
   }
+  // Dark doorway behind the sliding panels.
+  batch.box([2.4, 2.5, 0.08], 0x2a3440, [MIGROS.doorX, 1.25, surface + 0.03]);
+  batch.box([2.8, 0.25, 0.3], 0x5a5a62, [MIGROS.doorX, 2.65, surface + 0.12]);
+  root.add(batch.build());
+
+  const doorMaterial = toon(0xa8d0e8);
+  const doors = [-1, 1].map((side) => {
+    const door = box(1.2, 2.4, 0.05, doorMaterial);
+    door.position.set(MIGROS.doorX + side * 0.6, 1.2, surface + 0.1);
+    root.add(door);
+    return door;
+  }) as [Mesh, Mesh];
+
+  const logo = createLabel('M', 1.4, 1.4, {
+    width: 256,
+    height: 256,
+    font: 'bold 220px "Helvetica Neue", Arial, sans-serif',
+    color: '#ff6600',
+    background: '#ffffff',
+  });
+  logo.position.set(MIGROS.startX + 3, 4.1, surface + 0.05);
+  const lettering = createLabel('MIGROS', 6, 1.1, {
+    width: 1024,
+    height: 192,
+    font: 'bold 150px "Helvetica Neue", Arial, sans-serif',
+    color: '#ff6600',
+    background: '#ffffff',
+  });
+  lettering.position.set(centerX, 4.1, surface + 0.05);
+  root.add(logo, lettering);
+  return { root, doors };
+}
+
+/** Railway bridge across the far end of the street; trains cross along z on `RAILWAY.trackX`. */
+function createRailwayBridge(): Group {
+  const batch = new GeometryBatch();
+  const centerX = (RAILWAY.frontX + RAILWAY.backX) / 2;
+  const depth = RAILWAY.backX - RAILWAY.frontX;
+  const span = 160;
+  const deckThickness = 0.8;
+  batch.box([depth, deckThickness, span], 0x9a958c, [centerX, RAILWAY.deckY - deckThickness / 2, 0]);
+  // Abutments either side of the underpass; the street runs through between them.
+  const underpassHalfWidth = FACADE_Z + 0.5;
+  for (const side of [-1, 1]) {
+    const wallLength = span / 2 - underpassHalfWidth;
+    const wallZ = side * (underpassHalfWidth + wallLength / 2);
+    batch.box([depth, RAILWAY.deckY - deckThickness, wallLength], 0xb0aa9e, [centerX, (RAILWAY.deckY - deckThickness) / 2, wallZ]);
+  }
+  for (const parapetX of [RAILWAY.frontX + 0.15, RAILWAY.backX - 0.15]) {
+    batch.box([0.3, 0.9, span], 0x8a857c, [parapetX, RAILWAY.deckY + 0.45, 0]);
+  }
+  for (const trackX of RAILWAY.trackX) {
+    batch.box([3, 0.15, span], 0x7a6e60, [trackX, RAILWAY.deckY + 0.07, 0]);
+    for (const railOffset of [-0.72, 0.72]) {
+      batch.box([0.08, 0.12, span], 0x5a5a62, [trackX + railOffset, RAILWAY.deckY + 0.2, 0]);
+    }
+    batch.box([0.03, 0.03, span], 0x2a2a30, [trackX, RAILWAY.deckY + 5.6, 0]);
+  }
+  // Catenary masts with a cross arm over both tracks.
+  for (let z = -70; z <= 70; z += 20) {
+    batch.box([0.25, 6.4, 0.25], 0x6a6a70, [RAILWAY.frontX + 0.6, RAILWAY.deckY + 3.2, z]);
+    batch.box([depth - 1.2, 0.15, 0.15], 0x6a6a70, [centerX, RAILWAY.deckY + 5.8, z]);
+  }
+  return batch.build();
 }
 
 function addShopFront(
@@ -286,16 +387,20 @@ function addWindows(
 }
 
 function createSign(text: string, width: number): Mesh {
-  const texture = textTexture(text, {
+  return createLabel(text, width, 0.65, {
     width: 1024,
     height: 128,
-    font: 'bold 60px "Comic Sans MS", "Chalkboard SE", sans-serif',
-    color: '#4a2a12',
-    background: '#ffe8b8',
+    font: 'bold 60px "Helvetica Neue", Arial, sans-serif',
+    color: '#2a2a30',
+    background: '#f4efe4',
   });
-  const sign = new Mesh(new PlaneGeometry(width, 0.65), new MeshBasicMaterial({ map: texture }));
-  sign.material.userData.outlineParameters = { visible: false };
-  return sign;
+}
+
+/** Flat, unlit text plane facing +z. */
+function createLabel(text: string, width: number, height: number, style: Parameters<typeof textTexture>[1]): Mesh {
+  const label = new Mesh(new PlaneGeometry(width, height), new MeshBasicMaterial({ map: textTexture(text, style) }));
+  label.material.userData.outlineParameters = { visible: false };
+  return label;
 }
 
 function createTree(x: number, z: number): Group {

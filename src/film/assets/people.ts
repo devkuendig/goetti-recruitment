@@ -126,6 +126,16 @@ export interface PasserbyLook {
   beard?: boolean;
   headband?: number;
   bag?: number;
+  backpack?: number;
+}
+
+const SCHOOLKID_SCALE = 0.75;
+
+/** A pupil: a scaled-down passer-by. */
+export function createSchoolkid(look: PasserbyLook): Passerby {
+  const pupil = createPasserby(look);
+  pupil.root.scale.setScalar(SCHOOLKID_SCALE);
+  return pupil;
 }
 
 export function createPasserby(look: PasserbyLook): Passerby {
@@ -172,6 +182,13 @@ export function createPasserby(look: PasserbyLook): Passerby {
     const strap = box(0.02, 0.2, 0.02, toon(look.bag));
     strap.position.set(0.04, -0.55, 0);
     arms[0].add(bag, strap);
+  }
+  if (look.backpack !== undefined) {
+    const backpack = box(0.38, 0.44, 0.2, toon(look.backpack));
+    backpack.position.set(0, 1.25, -0.23);
+    const flap = box(0.3, 0.14, 0.04, toon(0xffffff));
+    flap.position.set(0, 1.36, -0.34);
+    root.add(backpack, flap);
   }
 
   const head = new Group();
