@@ -10,7 +10,7 @@ import re
 import shlex
 import sys
 
-PROJECT_ROOT = "/workspace/goetti-recruitment"
+PROJECT_ROOT = "/workspace/planbee"
 SHELL_OPERATOR_CHARS = set(";|&<>()")
 OPTIONS_WITH_VALUE = {"-e", "--expression", "-f", "--file", "-l", "--line-length"}
 

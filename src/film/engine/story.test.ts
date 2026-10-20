@@ -119,17 +119,34 @@ describe('Story', () => {
     expect(secondBeatSeconds).toBeCloseTo(1.5);
   });
 
-  it('whenFastForwardReachesOpenQuestion_thenStopsBeforeTarget', async () => {
-    const story = new Story(() => new Promise<number>(() => undefined));
+  it('whenFastForwardReachesQuestion_thenPicksFirstOptionAndContinues', async () => {
+    let presented = 0;
+    const story = new Story(() => {
+      presented++;
+      return new Promise<number>(() => undefined);
+    });
     const script = async () => {
       await story.play(new Timeline().tween(0, 1, () => undefined));
       await story.ask('Was tun?', [], new Timeline());
+      await story.play(new Timeline().tween(0, 3, () => undefined));
     };
     void script();
 
+    await story.fastForwardTo(2.5, 0.25, () => undefined);
+
+    expect(story.filmTime).toBeCloseTo(2.5);
+    expect(story.answers).toEqual([0]);
+    expect(presented).toBe(0);
+  });
+
+  it('whenQuestionAlreadyOpen_thenFastForwardDoesNotAnswerIt', async () => {
+    const story = new Story(() => new Promise<number>(() => undefined));
+    void story.ask('Was tun?', [], new Timeline());
+
     await story.fastForwardTo(10, 0.25, () => undefined);
 
-    expect(story.filmTime).toBeCloseTo(1);
+    expect(story.isAsking).toBe(true);
+    expect(story.answers).toEqual([]);
   });
 
   it('whenStopped_thenNothingAdvancesAndPlayNeverResolves', async () => {

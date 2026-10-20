@@ -291,15 +291,6 @@ function createFlower(color: number, x: number, y: number, z: number, facing: 1 
   return flower;
 }
 
-const SCHOOLKID_SCALE = 0.75;
-
-/** A pupil: a scaled-down passer-by. */
-export function createSchoolkid(look: PasserbyLook): Passerby {
-  const pupil = createPasserby(look);
-  pupil.root.scale.setScalar(SCHOOLKID_SCALE);
-  return pupil;
-}
-
 const TODDLER_SCALE = 0.5;
 const TODDLER_HEAD_SCALE = 1.5;
 

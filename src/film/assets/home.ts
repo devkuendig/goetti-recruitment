@@ -43,6 +43,9 @@ export const HOME_SPOTS = {
   /** Oven built into the kitchen counter, under the baking things. */
   oven: new Vector3(-60.86, 3.55, 13.3),
   keyHook: new Vector3(-60.25, 4.5, 15.6),
+  /** Barista machine on the worktop and the hot cup in front of it (top of the coffee). */
+  barista: new Vector3(-60.5, 4.3, 14.5),
+  coffeeCup: new Vector3(-60.68, 4.15, 13.95),
   /** Tip of the flag pole on the window sill — low enough to be seen through the window. */
   flag: new Vector3(-61.75, 4.65, 9.65),
   car: new Vector3(-63, 0.8, 14),
@@ -388,6 +391,97 @@ function createParagliderPack(): Group {
  * Everything ready for banana bread except the bananas: an oven built into the counter, and on the
  * worktop the open recipe book, an empty loaf tin, flour, sugar and a mixing bowl with a whisk.
  */
+const STEEL = 0xcfd3d6;
+const ESPRESSO_RED = 0xd52b1e;
+
+/** White cup with a saucer; the coffee surface sits at the cup's top. */
+function createCoffeeCup(): Group {
+  const cup = new Group();
+  const saucer = cylinder(0.075, 0.06, 0.012, toon(0xffffff));
+  saucer.position.y = 0.006;
+  const body = cylinder(0.045, 0.034, 0.07, toon(0xffffff));
+  body.position.y = 0.047;
+  const coffee = cylinder(0.04, 0.04, 0.005, toon(0x6b3a1e));
+  coffee.position.y = 0.08;
+  const crema = cylinder(0.022, 0.022, 0.006, toon(0xc98a4a));
+  crema.position.y = 0.082;
+  const handle = new Mesh(new TorusGeometry(0.02, 0.006, 8, 16), toon(0xffffff));
+  handle.position.set(0, 0.05, 0.05);
+  handle.rotation.y = Math.PI / 2;
+  cup.add(saucer, body, coffee, crema, handle);
+  return cup;
+}
+
+/**
+ * Portafilter espresso machine facing into the room (-x): steel body with a red side panel,
+ * pressure gauge, group head with portafilter, steam wand, drip tray with a cup, cups warming on top.
+ * The hot cup in front of it sits at `HOME_SPOTS.coffeeCup`.
+ */
+function createBaristaMachine(worktopY: number): Group {
+  const root = new Group();
+  const { x, z } = HOME_SPOTS.barista;
+  const frontX = x - 0.22;
+  const body = box(0.44, 0.42, 0.52, toon(STEEL));
+  body.position.set(x, worktopY + 0.21, z);
+  const sidePanels = [-1, 1].map((side) => {
+    const panel = box(0.4, 0.3, 0.01, toon(ESPRESSO_RED));
+    panel.position.set(x, worktopY + 0.24, z + side * 0.265);
+    return panel;
+  });
+  const gauge = cylinder(0.045, 0.045, 0.02, toon(0xffffff));
+  gauge.rotation.z = Math.PI / 2;
+  gauge.position.set(frontX - 0.01, worktopY + 0.34, z);
+  const needle = box(0.005, 0.035, 0.006, toon(ESPRESSO_RED));
+  needle.position.set(frontX - 0.022, worktopY + 0.35, z + 0.008);
+  needle.rotation.x = -0.6;
+  const groupHead = cylinder(0.05, 0.045, 0.07, toon(0x9a9aa2));
+  groupHead.position.set(frontX - 0.06, worktopY + 0.24, z - 0.08);
+  const portafilter = cylinder(0.042, 0.042, 0.04, toon(0x9a9aa2));
+  portafilter.position.set(frontX - 0.06, worktopY + 0.19, z - 0.08);
+  const portafilterHandle = box(0.16, 0.03, 0.035, toon(0x1a1a22));
+  portafilterHandle.position.set(frontX - 0.17, worktopY + 0.19, z - 0.08);
+  const steamWand = cylinder(0.007, 0.007, 0.22, toon(STEEL));
+  steamWand.position.set(frontX - 0.05, worktopY + 0.2, z + 0.17);
+  steamWand.rotation.z = 0.25;
+  const steamKnob = sphere(0.022, toon(0x1a1a22));
+  steamKnob.position.set(frontX - 0.02, worktopY + 0.34, z + 0.17);
+  const dripTray = box(0.14, 0.03, 0.4, toon(0x5a5a62));
+  dripTray.position.set(frontX - 0.07, worktopY + 0.015, z);
+  const shotCup = createCoffeeCup();
+  shotCup.position.set(frontX - 0.06, worktopY + 0.03, z - 0.08);
+  root.add(body, ...sidePanels, gauge, needle, groupHead, portafilter, portafilterHandle, steamWand, steamKnob, dripTray, shotCup);
+  for (const offset of [-0.14, 0, 0.14]) {
+    const warmingCup = cylinder(0.04, 0.032, 0.06, toon(0xffffff));
+    warmingCup.rotation.x = Math.PI;
+    warmingCup.position.set(x + 0.02, worktopY + 0.45, z + offset);
+    root.add(warmingCup);
+  }
+  const heroCup = createCoffeeCup();
+  heroCup.position.set(HOME_SPOTS.coffeeCup.x, worktopY, HOME_SPOTS.coffeeCup.z);
+  root.add(heroCup);
+  return root;
+}
+
+/** Open shelf above the worktop with a row of colourful mugs and a jar of beans. */
+function createCupShelf(floorY: number): Group {
+  const root = new Group();
+  const shelfY = floorY + 1.75;
+  const shelf = box(0.28, 0.04, 1.8, toon(0xb07a4a));
+  shelf.position.set(-60.36, shelfY, 13.9);
+  root.add(shelf);
+  [0xe2453b, 0xffd84a, 0x39c0e0, 0x6cc070, 0xff7fa8, 0xffffff].forEach((color, index) => {
+    const mug = cylinder(0.045, 0.045, 0.1, toon(color));
+    mug.position.set(-60.38, shelfY + 0.07, 13.15 + index * 0.22);
+    root.add(mug);
+  });
+  const beans = cylinder(0.06, 0.06, 0.16, toon(0x4a2a14));
+  beans.position.set(-60.38, shelfY + 0.1, 14.6);
+  const lid = cylinder(0.065, 0.065, 0.03, toon(STEEL));
+  lid.position.set(-60.38, shelfY + 0.195, 14.6);
+  root.add(beans, lid);
+  return root;
+}
+
 function createBakingCorner(floorY: number): { root: Group; ovenLamp: MeshToonMaterial } {
   const root = new Group();
   const worktopY = floorY + 0.94;
@@ -656,14 +750,13 @@ function furnishFlat(): {
   laptopLid.add(lidPanel, screen);
   root.add(laptopBase, laptopLid);
 
-  // Kitchen counter along the right wall; the fruit bowl holds a single peel.
-  const counter = box(0.6, 0.9, 2.4, toon(0xf4f4f4));
+  // Generous kitchen counter along the right wall, with the barista machine and a shelf of cups;
+  // the fruit bowl holds a single peel.
+  const counter = box(0.6, 0.9, 4.0, toon(0xf4f4f4));
   counter.position.set(-60.55, floorY + 0.45, 13);
-  const worktop = box(0.64, 0.04, 2.44, toon(0xb07a4a));
+  const worktop = box(0.64, 0.04, 4.04, toon(0xb07a4a));
   worktop.position.set(-60.55, floorY + 0.92, 13);
-  const coffeeMachine = box(0.25, 0.35, 0.25, toon(0xe2453b));
-  coffeeMachine.position.set(-60.5, floorY + 1.12, 13.9);
-  root.add(counter, worktop, coffeeMachine);
+  root.add(counter, worktop, createBaristaMachine(floorY + 0.94), createCupShelf(floorY));
   const bowl = sphere(0.15, toon(0x39c0e0));
   bowl.scale.set(1, 0.45, 1);
   bowl.position.set(HOME_SPOTS.bowl.x, floorY + 0.98, HOME_SPOTS.bowl.z);

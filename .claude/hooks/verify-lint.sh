@@ -5,7 +5,7 @@
 
 set -uo pipefail
 
-cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /workspace/goetti-recruitment)"
+cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /workspace/planbee)"
 
 MODE="${1:-stop}"
 

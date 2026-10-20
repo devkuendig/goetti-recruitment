@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alain allein zuhaus</title>
+    <title>Alain alain Zuhaus</title>
     <link rel="stylesheet" href="/src/film/film.css" />
   </head>
   <body>
@@ -14,7 +14,7 @@
 
       <section id="title-card" class="film__card film__card--title">
         <div class="film__sign">
-          <h1 class="film__title">Alain allein zuhaus</h1>
+          <h1 class="film__title">Alain alain Zuhaus</h1>
         </div>
         <button id="play" class="film__button" type="button">▶ Start</button>
       </section>
@@ -26,11 +26,11 @@
 
       <form id="debug" class="film__debug" hidden>
         <span id="debug-time" class="film__debug-time">0.0 s</span>
-        <label>
+        <label class="film__debug-slider">
           Springe zu
-          <input id="debug-seek" type="number" min="0" step="1" value="0" inputmode="numeric" /> s
+          <input id="debug-seek" type="range" min="0" max="300" step="0.1" value="0" />
+          <output id="debug-seek-value" for="debug-seek">0 s</output>
         </label>
-        <button class="film__debug-button" type="submit">⏩ Los</button>
         <span>Leertaste = Pause</span>
       </form>
 

@@ -67,6 +67,19 @@ try {
   };
 
   const debugTime = requireElement('debug-time');
+  const seekInput = requireElement('debug-seek') as HTMLInputElement;
+  const seekValue = requireElement('debug-seek-value');
+  let isScrubbing = false;
+  const showDebugTime = (filmTime: number) => {
+    debugTime.textContent = `${filmTime.toFixed(1)} s`;
+    if (!isScrubbing) {
+      // Grow the slider if the film runs longer than its range.
+      seekInput.max = String(Math.max(Number(seekInput.max),Math.ceil(filmTime)));
+      seekInput.value = filmTime.toFixed(1);
+      seekValue.textContent = `${Math.round(filmTime)} s`;
+    }
+  };
+
   stage.onFrame((deltaSeconds) => {
     if (isPaused || isSeeking) {
       return;
@@ -74,16 +87,16 @@ try {
     titleTimeline?.advance(deltaSeconds);
     story?.advance(deltaSeconds);
     callouts.update(deltaSeconds);
-    debugTime.textContent = `${(story?.filmTime ?? 0).toFixed(1)} s`;
+    showDebugTime(story?.filmTime ?? 0);
   });
 
   requireElement('play').addEventListener('click', () => play());
   requireElement('replay').addEventListener('click', () => play());
 
-  // Debug controls: space pauses, "Springe zu" seeks in film time.
-  {
+  // Debug controls (desktop only): space pauses, the slider seeks in film time.
+  const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (isDesktop) {
     const debugForm = requireElement('debug') as HTMLFormElement;
-    const seekInput = requireElement('debug-seek') as HTMLInputElement;
     debugForm.hidden = false;
 
     const isPauseKey = (event: KeyboardEvent) => event.code === 'Space' && !(event.target instanceof HTMLInputElement);
@@ -106,14 +119,22 @@ try {
       }
     });
 
-    debugForm.addEventListener('submit', (event) => {
-      event.preventDefault();
+    debugForm.addEventListener('submit', (event) => event.preventDefault());
+    seekInput.addEventListener('input', () => {
+      isScrubbing = true;
+      seekValue.textContent = `${Math.round(seekInput.valueAsNumber)} s`;
+    });
+    seekInput.addEventListener('change', () => {
+      isScrubbing = false;
+      // Hand focus back so space pauses again.
+      seekInput.blur();
       const targetSeconds = seekInput.valueAsNumber;
-      if (isSeeking || Number.isNaN(targetSeconds)) {
+      if (isSeeking) {
         return;
       }
-      // Timelines only run forward: seeking back replays from the start with the same answers.
-      if (!story || targetSeconds < story.filmTime) {
+      // Timelines only run forward: seeking back (or past an open question) replays from the start
+      // with the answers given so far; questions beyond them get their first option.
+      if (!story || targetSeconds < story.filmTime || story.isAsking) {
         play(story?.answers ?? []);
       }
       const seekingStory = story;
@@ -126,9 +147,7 @@ try {
       seekingStory
         .fastForwardTo(targetSeconds, 1 / 30, (deltaSeconds) => callouts.update(deltaSeconds))
         .then(
-          () => {
-            debugTime.textContent = `${seekingStory.filmTime.toFixed(1)} s`;
-          },
+          () => showDebugTime(seekingStory.filmTime),
           (error: unknown) => showError('Springen fehlgeschlagen', error),
         )
         .finally(() => {

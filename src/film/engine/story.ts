@@ -31,6 +31,9 @@ export class Story {
   private running: RunningClip | undefined;
   private stopped = false;
   private playedSeconds = 0;
+  private asking = false;
+  /** While fast-forwarding, every question is answered with its first option. */
+  private answeringFirstOption = false;
 
   /** `presetAnswers` answer the first questions without asking — used to replay up to a seek point. */
   constructor(private readonly presentChoice: PresentChoice, presetAnswers: readonly number[] = []) {
@@ -45,6 +48,11 @@ export class Story {
   /** Every answer given so far, in order. */
   get answers(): readonly number[] {
     return this.pickedAnswers;
+  }
+
+  /** True while a question waits for the viewer. */
+  get isAsking(): boolean {
+    return this.asking;
   }
 
   /** Background timeline (clouds, sparkles, trains) that runs for the whole film. */
@@ -64,10 +72,16 @@ export class Story {
       this.pickedAnswers.push(preset);
       return preset;
     }
+    if (this.answeringFirstOption) {
+      this.pickedAnswers.push(0);
+      return 0;
+    }
     this.running = idle
       ? { timeline: idle, duration: Number.POSITIVE_INFINITY, finish: () => undefined, isIdle: true }
       : undefined;
+    this.asking = true;
     const picked = await this.presentChoice(question, options);
+    this.asking = false;
     this.running = undefined;
     this.pickedAnswers.push(picked);
     return picked;
@@ -93,20 +107,29 @@ export class Story {
   }
 
   /**
-   * Plays forward in `stepSeconds` steps until `filmTime` reaches `targetSeconds`, or the film
-   * waits for a viewer's answer or has ended. `onStep` runs after every step (e.g. callouts).
+   * Plays forward in `stepSeconds` steps until `filmTime` reaches `targetSeconds` or the film has
+   * ended. Questions reached on the way are answered with their first option; a question that was
+   * already open before the call stops it. `onStep` runs after every step (e.g. callouts).
    */
   async fastForwardTo(targetSeconds: number, stepSeconds: number, onStep: (deltaSeconds: number) => void): Promise<void> {
-    while (!this.stopped && this.playedSeconds < targetSeconds) {
-      if (!this.running) {
-        await nextTask();
+    if (this.asking) {
+      return;
+    }
+    this.answeringFirstOption = true;
+    try {
+      while (!this.stopped && this.playedSeconds < targetSeconds) {
+        if (!this.running) {
+          await nextTask();
+        }
+        if (!this.running || this.running.isIdle) {
+          return;
+        }
+        const step = Math.min(stepSeconds, targetSeconds - this.playedSeconds);
+        this.advance(step);
+        onStep(step);
       }
-      if (!this.running || this.running.isIdle) {
-        return;
-      }
-      const step = Math.min(stepSeconds, targetSeconds - this.playedSeconds);
-      this.advance(step);
-      onStep(step);
+    } finally {
+      this.answeringFirstOption = false;
     }
   }
 

@@ -51,7 +51,7 @@ export function apartmentMorning(world: World): Timeline {
   const timeline = new Timeline();
   const { callouts, thoughts } = world;
   const windowLow = HOME_SPOTS.window.clone().setY(HOME_SPOTS.window.y - 0.9);
-  timeline.at(0.6, () => callouts.showBanner('Alain allein zuhaus', 'Samstagmorgen, Winterthur', 4.5));
+  timeline.at(0.6, () => callouts.showBanner('Alain alain Zuhaus', 'Samstagmorgen, Winterthur', 4.5));
   timeline.at(2, () => callouts.show('GÄHN!', thoughts, 1.6, 0));
   timeline.at(10, () => callouts.say('Hmm … was mache ich heute?', thoughts, 3.5, 0));
   direct(timeline, world, [

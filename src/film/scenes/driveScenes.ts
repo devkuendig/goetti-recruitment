@@ -528,9 +528,9 @@ export function driveToBananas(world: World, cast: CrossingCast, bananas: Banana
 
 export const BANANA_QUESTION = 'Ein Lastwagen voller Bananen ist umgekippt! Was willst du machen?';
 export const BANANA_OPTIONS: readonly ChoiceOption[] = [
-  { icon: '🍨', label: 'Bananen einsammeln für einen Bananensplit' },
+  { icon: '🐒', label: 'Bananen einsammeln für einen Affen-Zoo im Wohnzimmer' },
   { icon: '💛', label: 'Bananen einsammeln für Moana' },
-  { icon: '😋', label: 'Alle selber aufessen' },
+  { icon: '🍞', label: 'Bananen einsammeln für Bananenbrot' },
 ];
 
 function wideBananaShot(timeline: Timeline, world: World, duration: number): void {
@@ -544,7 +544,7 @@ function alainSays(world: World, text: string, durationSeconds: number): void {
   world.callouts.say(text, world.b05.root, durationSeconds, 2.1);
 }
 
-function bananaSplitReaction(world: World, cast: BananaCast): Timeline {
+function monkeyZooReaction(world: World, cast: BananaCast): Timeline {
   const timeline = new Timeline();
   const sparkles = cast.roadBananas.slice(0, 4).map((banana) => {
     const sparkle = createSparkle();
@@ -552,7 +552,7 @@ function bananaSplitReaction(world: World, cast: BananaCast): Timeline {
     world.city.sideStreet.add(sparkle);
     return sparkle;
   });
-  timeline.at(0.5, () => alainSays(world, 'Daraus mache ich einen Riesen-Bananensplit! 🍨', 3.5));
+  timeline.at(0.5, () => alainSays(world, 'Damit eröffne ich einen Affen-Zoo im Wohnzimmer! 🐒', 3.5));
   timeline.at(2.4, () => world.sounds.ping(2600));
   timeline.tween(2.4, 1, (progress) => {
     sparkles.forEach((sparkle, index) => {
@@ -579,12 +579,12 @@ function forMoanaReaction(world: World, cast: BananaCast): Timeline {
   return timeline;
 }
 
-/** He eats one, flicks the peel out of the window — and the truck driver slips on it. */
-function eatThemAllReaction(world: World, cast: BananaCast): Timeline {
+/** Bananenbrot — he tastes one first, flicks the peel out of the window and the truck driver slips on it. */
+function bananaBreadReaction(world: World, cast: BananaCast): Timeline {
   const timeline = new Timeline();
   const { callouts, sounds, b05 } = world;
   const { driver, peel } = cast;
-  timeline.at(0.5, () => alainSays(world, 'Die esse ich alle selber! 😋', 2.4));
+  timeline.at(0.5, () => alainSays(world, 'Bananenbrot! Aber zuerst eine probieren … 😋', 2.4));
   for (const munchTime of [1.6, 2.4]) {
     timeline.at(munchTime, () => {
       sounds.munch();
@@ -645,9 +645,9 @@ function eatThemAllReaction(world: World, cast: BananaCast): Timeline {
 }
 
 export const BANANA_REACTIONS: readonly ((world: World, cast: BananaCast) => Timeline)[] = [
-  bananaSplitReaction,
+  monkeyZooReaction,
   forMoanaReaction,
-  eatThemAllReaction,
+  bananaBreadReaction,
 ];
 
 const ARMFUL_SIZE = 8;

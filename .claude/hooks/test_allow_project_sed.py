@@ -2,8 +2,8 @@
 import json
 import subprocess
 
-HOOK = "/workspace/goetti-recruitment/.claude/hooks/allow_project_sed.py"
-FILE = "/workspace/goetti-recruitment/frontend/src/app/pages/useDashboard.test.ts"
+HOOK = "/workspace/planbee/.claude/hooks/allow_project_sed.py"
+FILE = "/workspace/planbee/frontend/src/app/pages/useDashboard.test.ts"
 
 CASES = [
     # (expected decision, command)
@@ -17,7 +17,7 @@ CASES = [
     ("none", f"sed -n \"$(cat /tmp/x)\" {FILE}"),
     ("none", f"sed -n `whoami` {FILE}"),
     ("deny", "sed -n 1,5p /etc/passwd"),
-    ("none", "grep -n foo /workspace/goetti-recruitment/README.md"),
+    ("none", "grep -n foo /workspace/planbee/README.md"),
 ]
 
 

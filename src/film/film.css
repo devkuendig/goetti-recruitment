@@ -231,8 +231,21 @@ body {
   display: none;
 }
 
-.film__debug input {
-  width: 4.5rem;
+.film__debug-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.film__debug-slider input {
+  width: 22rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.film__debug-slider output {
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .film__debug-time {
@@ -242,11 +255,6 @@ body {
 
 .film__debug-time--paused::after {
   content: " ⏸";
-}
-
-.film__debug-button {
-  min-height: 44px;
-  cursor: pointer;
 }
 
 .film__error {

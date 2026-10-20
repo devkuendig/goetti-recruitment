@@ -48,7 +48,7 @@ const ENDING_TITLES = {
 } as const;
 
 /**
- * "Alain allein zuhaus" — the whole interactive film as one script.
+ * "Alain alain Zuhaus" — the whole interactive film as one script.
  * Every cast is built up front so no beat stutters while geometry is created.
  * Resolves with the title of the end card the viewer earned.
  */
