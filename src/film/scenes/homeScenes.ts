@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Group, MathUtils, Vector3 } from 'three';
 import { createSparkle, setIndicators } from '../assets/b05';
 import { HOME, HOME_SPOTS, LAPTOP_CLOSED } from '../assets/home';
 import { GLOW_INTENSITY } from '../engine/build';
@@ -51,7 +51,7 @@ export function apartmentMorning(world: World): Timeline {
   const timeline = new Timeline();
   const { callouts, thoughts } = world;
   const windowLow = HOME_SPOTS.window.clone().setY(HOME_SPOTS.window.y - 0.9);
-  timeline.at(0.6, () => callouts.showBanner('Alain allein zuhaus', 'Samstagmorgen, Zürcherstrasse 7, Winterthur', 4.5));
+  timeline.at(0.6, () => callouts.showBanner('Alain allein zuhaus', 'Samstagmorgen, Winterthur', 4.5));
   timeline.at(2, () => callouts.show('GÄHN!', thoughts, 1.6, 0));
   timeline.at(10, () => callouts.say('Hmm … was mache ich heute?', thoughts, 3.5, 0));
   direct(timeline, world, [
@@ -88,16 +88,48 @@ function zoomTo(fromFov: number, toFov: number, start: number, duration: number)
   return (elapsed) => lerp(fromFov, toFov, ease.inOut(Math.min(1, Math.max(0, (elapsed - start) / duration))));
 }
 
-/** Paragliding? The flag outside hangs limp — no wind at all. */
+const GLIDER_CRASH_SPOT = new Vector3(-63.7, HOME.flatFloorY + 0.06, 12.5);
+
+/**
+ * Paragliding? The flag outside hangs limp. Alain tests the "wind" by blowing at the model glider
+ * on the ceiling — the string snaps and it nosedives onto the floor. Crash risk: today, no thanks.
+ */
 function paraglidingReaction(world: World): Timeline {
   const timeline = new Timeline();
-  const { callouts, thoughts, home } = world;
+  const { callouts, thoughts, home, sounds } = world;
+  const glider = home.modelGlider;
+  const hookPosition = glider.position.clone();
+  const gliderLook = hookPosition.clone().setY(hookPosition.y - 0.5);
   timeline.at(1, () => callouts.say('Gleitschirmfliegen! 🪂', thoughts, 2.2, 0));
   // One hopeful twitch of the flag … then nothing.
   timeline.tween(3.8, 1.2, (progress) => {
     home.flag.rotation.x = Math.sin(progress * Math.PI) * 0.15;
   }, ease.linear);
-  timeline.at(5, () => callouts.say('… null Wind. Na super. 😑', thoughts, 3, 0));
+  timeline.at(4.6, () => callouts.say('Hmm … kein Lüftchen?', thoughts, 1.6, 0));
+  timeline.at(6.3, () => callouts.say('Testflug! 🌬️', thoughts, 1.2, 0));
+  // A mighty puff: the model swings wildly …
+  timeline.at(7.2, () => {
+    sounds.whoosh();
+    callouts.show('PUUUSTE!', thoughts, 1, -0.2);
+  });
+  timeline.tween(7.2, 0.7, (progress) => {
+    glider.rotation.set(Math.sin(progress * Math.PI * 3) * 0.6, 0, Math.sin(progress * Math.PI * 2) * 0.4);
+  }, ease.linear);
+  // … the string snaps, and it spirals into the floor.
+  timeline.at(7.9, () => {
+    sounds.click();
+    callouts.show('KNACKS!', glider, 0.8, 0.1);
+    glider.children[0].visible = false;
+  });
+  timeline.tween(7.9, 0.9, (progress) => {
+    glider.position.lerpVectors(hookPosition, GLIDER_CRASH_SPOT, progress);
+    glider.rotation.set(progress * 1.4, progress * 9, -progress * 0.8);
+  }, ease.in);
+  timeline.at(8.8, () => {
+    sounds.bonk();
+    callouts.show('PLONK!', glider, 1.2, 0.3);
+  });
+  timeline.at(9.6, () => callouts.say('… Absturzgefahr. Heute lieber nicht. 😅', thoughts, 2.6, 0));
   direct(timeline, world, [
     flatShot(
       world,
@@ -106,9 +138,18 @@ function paraglidingReaction(world: World): Timeline {
         { time: 1.2, target: HOME_SPOTS.gear },
         { time: 2.6, target: HOME_SPOTS.gear },
         { time: 3.6, target: HOME_SPOTS.flag },
+        { time: 5.4, target: HOME_SPOTS.flag },
+        { time: 6.4, target: gliderLook },
+        { time: 7.9, target: gliderLook },
+        { time: 8.8, target: GLIDER_CRASH_SPOT },
       ],
-      8,
-      zoomTo(POV_FOV, 32, 3.6, 1),
+      12.4,
+      (elapsed) => {
+        // Zoom onto the limp flag, back out for the test flight.
+        const zoomIn = MathUtils.clamp((elapsed - 3.6) / 1, 0, 1);
+        const zoomOut = MathUtils.clamp((elapsed - 5.4) / 1, 0, 1);
+        return lerp(POV_FOV, 32, ease.inOut(zoomIn) - ease.inOut(zoomOut) * 0.6);
+      },
     ),
   ]);
   return timeline;
@@ -145,22 +186,49 @@ function workReaction(world: World): Timeline {
   return timeline;
 }
 
-/** Banana bread? The fruit bowl holds a single peel and a fruit fly. */
+/**
+ * Banana bread? Recipe open, tin ready, oven preheating … and the fruit bowl holds a single peel
+ * and a fruit fly.
+ */
 function bananaBreadReaction(world: World): Timeline {
   const timeline = new Timeline();
-  const { callouts, thoughts, home } = world;
-  timeline.at(1.4, () => callouts.say('Bananenbrot backen! 🍌', thoughts, 2, 0));
-  timeline.at(3.4, () => callouts.show('LEER!', home.fruitFly, 1.4, 0.15));
-  timeline.at(4.2, () => callouts.say('Keine einzige Banane im Haus?!', thoughts, 3, 0));
+  const { callouts, thoughts, home, sounds } = world;
+  const setOven = (isOn: boolean) => {
+    home.ovenLamp.color.set(isOn ? 0xffb040 : 0x3a2a10);
+    home.ovenLamp.emissive.set(isOn ? 0xff8800 : 0x000000);
+  };
+  // Callouts pin to objects; these two mark the recipe and the oven.
+  const [recipeAnchor, ovenAnchor] = [HOME_SPOTS.baking, HOME_SPOTS.oven].map((spot) => {
+    const anchor = new Group();
+    anchor.position.copy(spot);
+    world.stage.scene.add(anchor);
+    return anchor;
+  });
+  timeline.at(1, () => callouts.say('Bananenbrot backen! 🍌', thoughts, 2, 0));
+  timeline.at(2.4, () => callouts.show('REZEPT ✔', recipeAnchor, 1.2, 0.2));
+  timeline.at(3.6, () => {
+    sounds.click();
+    setOven(true);
+    callouts.show('OFEN 180° 🔥', ovenAnchor, 1.6, 0.3);
+  });
+  timeline.at(6, () => callouts.show('LEER!', home.fruitFly, 1.4, 0.15));
+  timeline.at(6.8, () => callouts.say('Keine einzige Banane im Haus?!', thoughts, 3, 0));
+  timeline.at(9.3, () => {
+    sounds.click();
+    setOven(false);
+  });
   direct(timeline, world, [
     flatShot(
       world,
       [
         { time: 0, target: ROOM_CENTER },
-        { time: 1.2, target: HOME_SPOTS.bowl },
+        { time: 1.6, target: HOME_SPOTS.baking },
+        { time: 3.2, target: HOME_SPOTS.oven },
+        { time: 4.6, target: HOME_SPOTS.oven },
+        { time: 5.8, target: HOME_SPOTS.bowl },
       ],
-      7.5,
-      zoomTo(POV_FOV, 34, 1.4, 1.2),
+      10,
+      zoomTo(POV_FOV, 38, 1.2, 1.2),
     ),
   ]);
   return timeline;

@@ -1,4 +1,16 @@
-import { Group, Mesh, PointLight, Vector3, type MeshToonMaterial, type Sprite } from 'three';
+import {
+  CanvasTexture,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+  PointLight,
+  SRGBColorSpace,
+  TorusGeometry,
+  Vector3,
+  type MeshToonMaterial,
+  type Sprite,
+} from 'three';
 import { box, cylinder, GeometryBatch, GLOW_INTENSITY, setOutlineThickness, sphere, toon } from '../engine/build';
 import { createBananaPeel } from './bananas';
 import { createSparkle } from './b05';
@@ -26,6 +38,10 @@ export const HOME_SPOTS = {
   gear: new Vector3(-65.2, 3.6, 11.3),
   laptop: new Vector3(-64.3, 3.65, 13.95),
   bowl: new Vector3(-60.55, 4.15, 12.6),
+  /** Recipe book and empty loaf tin on the worktop. */
+  baking: new Vector3(-60.55, 4.15, 13.3),
+  /** Oven built into the kitchen counter, under the baking things. */
+  oven: new Vector3(-60.86, 3.55, 13.3),
   keyHook: new Vector3(-60.25, 4.5, 15.6),
   /** Tip of the flag pole on the window sill — low enough to be seen through the window. */
   flag: new Vector3(-61.75, 4.65, 9.65),
@@ -56,6 +72,10 @@ export interface Home {
   /** Swiss flag hanging off the facade; swing it with `rotation.x`. */
   flag: Group;
   clockHand: Group;
+  /** Oven light: glows (emissive) once he switches the oven on. */
+  ovenLamp: MeshToonMaterial;
+  /** Model paraglider hanging from the ceiling; origin at the ceiling hook. */
+  modelGlider: Group;
 }
 
 export const LAPTOP_CLOSED = Math.PI / 2;
@@ -167,6 +187,8 @@ export function createHome(): Home {
     keySparkle: flat.keySparkle,
     flag,
     clockHand: flat.clockHand,
+    ovenLamp: flat.ovenLamp,
+    modelGlider: flat.modelGlider,
   };
 }
 
@@ -308,6 +330,261 @@ function furnishGarage(): { root: Group; lamp: MeshToonMaterial; light: PointLig
   return { root, lamp, light };
 }
 
+const WING_ORANGE = 0xff6a2a;
+const WING_BLUE = 0x2f6fd8;
+const STRAP_BLACK = 0x222228;
+
+/**
+ * Packed paraglider: a tall, rounded rucksack standing on the floor, front (+x) into the room,
+ * shoulder straps against the wall. Origin at its foot.
+ */
+function createParagliderPack(): Group {
+  const pack = new Group();
+  const fabric = toon(WING_ORANGE);
+  const strap = toon(STRAP_BLACK);
+  const body = box(0.36, 0.72, 0.5, fabric);
+  body.position.y = 0.36;
+  const top = sphere(0.25, fabric);
+  top.scale.set(0.72, 0.42, 1);
+  top.position.y = 0.72;
+  const pocket = box(0.06, 0.32, 0.38, toon(0xd9541f));
+  pocket.position.set(0.2, 0.3, 0);
+  const band = box(0.37, 0.07, 0.51, toon(WING_BLUE));
+  band.position.y = 0.56;
+  pack.add(body, top, pocket, band);
+  // Compression straps round the pack, each with a buckle on the front.
+  for (const y of [0.18, 0.42, 0.66]) {
+    const compression = box(0.37, 0.03, 0.51, strap);
+    compression.position.y = y;
+    const buckle = box(0.03, 0.05, 0.06, toon(0xb5b8bd));
+    buckle.position.set(0.235, y, 0.1);
+    pack.add(compression, buckle);
+  }
+  // Padded shoulder straps and a waist belt on the back.
+  for (const side of [-1, 1]) {
+    const shoulder = box(0.05, 0.5, 0.07, strap);
+    shoulder.position.set(-0.2, 0.42, side * 0.13);
+    pack.add(shoulder);
+  }
+  const waistBelt = box(0.05, 0.08, 0.5, strap);
+  waistBelt.position.set(-0.2, 0.12, 0);
+  // Carabiner dangling from the side, glider brand on the pocket.
+  const carabiner = new Mesh(new TorusGeometry(0.035, 0.008, 6, 14), toon(0xcfd3d6));
+  carabiner.position.set(0.05, 0.5, 0.27);
+  const brand = createLabel('ALPEN-AIR', 0.34, 0.08, {
+    width: 256,
+    height: 60,
+    font: 'bold 40px "Helvetica Neue", Arial, sans-serif',
+    color: '#ffffff',
+    background: '#d9541f',
+  });
+  brand.position.set(0.234, 0.38, 0);
+  brand.rotation.y = Math.PI / 2;
+  pack.add(waistBelt, carabiner, brand);
+  return pack;
+}
+
+/**
+ * Everything ready for banana bread except the bananas: an oven built into the counter, and on the
+ * worktop the open recipe book, an empty loaf tin, flour, sugar and a mixing bowl with a whisk.
+ */
+function createBakingCorner(floorY: number): { root: Group; ovenLamp: MeshToonMaterial } {
+  const root = new Group();
+  const worktopY = floorY + 0.94;
+  const counterFrontX = -60.86;
+  // Oven: steel front, dark glass door, handle, two knobs, a light inside.
+  const ovenFront = box(0.02, 0.6, 0.58, toon(0xb5b8bd));
+  ovenFront.position.set(counterFrontX, floorY + 0.45, HOME_SPOTS.oven.z);
+  const ovenGlass = box(0.02, 0.32, 0.44, toon(0x2a2a30));
+  ovenGlass.position.set(counterFrontX - 0.005, floorY + 0.4, HOME_SPOTS.oven.z);
+  const ovenHandle = box(0.03, 0.03, 0.42, toon(0xe8e8e8));
+  ovenHandle.position.set(counterFrontX - 0.03, floorY + 0.6, HOME_SPOTS.oven.z);
+  const ovenLamp = toon(0x3a2a10);
+  ovenLamp.emissiveIntensity = GLOW_INTENSITY;
+  const ovenLight = box(0.01, 0.06, 0.2, ovenLamp);
+  ovenLight.position.set(counterFrontX - 0.012, floorY + 0.5, HOME_SPOTS.oven.z);
+  root.add(ovenFront, ovenGlass, ovenHandle, ovenLight);
+  for (const offset of [-0.18, 0.18]) {
+    const knob = cylinder(0.025, 0.025, 0.03, toon(0x1a1a22));
+    knob.rotation.z = Math.PI / 2;
+    knob.position.set(counterFrontX - 0.02, floorY + 0.7, HOME_SPOTS.oven.z + offset);
+    root.add(knob);
+  }
+
+  // Open recipe book propped against the wall.
+  const recipe = createLabel('BANANENBROT', 0.3, 0.2, {
+    width: 300,
+    height: 200,
+    font: 'bold 40px "Comic Sans MS", "Comic Neue", sans-serif',
+    color: '#7a4a1e',
+    background: '#fff6dc',
+  });
+  recipe.position.set(-60.3, worktopY + 0.12, HOME_SPOTS.baking.z + 0.25);
+  recipe.rotation.set(0, -Math.PI / 2, -0.25);
+  // Empty loaf tin, flour and sugar packs, mixing bowl with a whisk.
+  const tin = box(0.26, 0.08, 0.12, toon(0x9a9aa2));
+  tin.position.set(-60.6, worktopY + 0.04, HOME_SPOTS.baking.z - 0.1);
+  const tinInside = box(0.23, 0.01, 0.09, toon(0x3a3a40));
+  tinInside.position.set(-60.6, worktopY + 0.081, HOME_SPOTS.baking.z - 0.1);
+  const flour = createLabel('MEHL', 0.1, 0.06, {
+    width: 120,
+    height: 70,
+    font: 'bold 40px "Helvetica Neue", Arial, sans-serif',
+    color: '#2f5fa5',
+    background: '#ffffff',
+  });
+  const flourBag = box(0.1, 0.18, 0.07, toon(0xffffff));
+  flourBag.position.set(-60.45, worktopY + 0.09, HOME_SPOTS.baking.z - 1.1);
+  flour.position.set(-60.505, worktopY + 0.1, HOME_SPOTS.baking.z - 1.1);
+  flour.rotation.y = -Math.PI / 2;
+  const sugar = box(0.08, 0.13, 0.06, toon(0xff8fb1));
+  sugar.position.set(-60.42, worktopY + 0.065, HOME_SPOTS.baking.z - 1.25);
+  const mixingBowl = sphere(0.12, toon(0xffffff));
+  mixingBowl.scale.set(1, 0.55, 1);
+  mixingBowl.position.set(-60.6, worktopY + 0.05, HOME_SPOTS.baking.z - 0.35);
+  const whisk = cylinder(0.008, 0.008, 0.26, toon(0xcfd3d6));
+  whisk.position.set(-60.62, worktopY + 0.15, HOME_SPOTS.baking.z - 0.35);
+  whisk.rotation.z = 0.5;
+  root.add(recipe, tin, tinInside, flourBag, flour, sugar, mixingBowl, whisk);
+  return { root, ovenLamp };
+}
+
+/**
+ * Framed holiday photo: Alain under his orange wing above Amden, Walensee and the Churfirsten
+ * below. Painted on a canvas, facing +z.
+ */
+function createParaglidingPhoto(): Mesh {
+  const width = 512;
+  const height = 320;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('2D canvas context unavailable — cannot paint the paragliding photo');
+  }
+  const sky = context.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, '#3f9be8');
+  sky.addColorStop(1, '#cfeaff');
+  context.fillStyle = sky;
+  context.fillRect(0, 0, width, height);
+  // Churfirsten: jagged grey peaks with snow caps, the Walensee below, green slopes in front.
+  context.fillStyle = '#8a93a0';
+  context.beginPath();
+  context.moveTo(0, 230);
+  [[60, 150], [110, 190], [170, 135], [230, 185], [290, 140], [350, 190], [410, 150], [470, 185], [512, 165], [512, 240]].forEach(
+    ([x, y]) => context.lineTo(x, y),
+  );
+  context.lineTo(0, 240);
+  context.fill();
+  context.fillStyle = '#ffffff';
+  for (const [x, y] of [[60, 150], [170, 135], [290, 140], [410, 150]]) {
+    context.beginPath();
+    context.moveTo(x - 18, y + 16);
+    context.lineTo(x, y);
+    context.lineTo(x + 18, y + 16);
+    context.fill();
+  }
+  context.fillStyle = '#2f7fb8';
+  context.fillRect(0, 232, width, 34);
+  context.fillStyle = '#5aaa60';
+  context.beginPath();
+  context.moveTo(0, 266);
+  context.quadraticCurveTo(260, 245, 512, 275);
+  context.lineTo(512, height);
+  context.lineTo(0, height);
+  context.fill();
+  // The wing: an orange-and-white arc of cells, lines down to a tiny pilot.
+  const wingCenterX = 320;
+  const wingTopY = 60;
+  for (let cell = -4; cell <= 4; cell++) {
+    const angle = cell * 0.17;
+    context.save();
+    context.translate(wingCenterX + Math.sin(angle) * 90, wingTopY + (1 - Math.cos(angle)) * 90);
+    context.rotate(angle);
+    context.fillStyle = cell % 2 === 0 ? '#ff6a2a' : '#ffffff';
+    context.fillRect(-11, -9, 22, 18);
+    context.restore();
+  }
+  const pilotY = wingTopY + 95;
+  context.strokeStyle = '#555555';
+  context.lineWidth = 1;
+  for (const cell of [-4, -2, 0, 2, 4]) {
+    const angle = cell * 0.17;
+    context.beginPath();
+    context.moveTo(wingCenterX + Math.sin(angle) * 90, wingTopY + (1 - Math.cos(angle)) * 90 + 9);
+    context.lineTo(wingCenterX, pilotY);
+    context.stroke();
+  }
+  context.fillStyle = '#222228';
+  context.fillRect(wingCenterX - 6, pilotY, 12, 10);
+  context.fillStyle = '#ffd84a';
+  context.beginPath();
+  context.arc(wingCenterX, pilotY - 4, 5, 0, Math.PI * 2);
+  context.fill();
+  context.font = 'bold 34px "Helvetica Neue", Arial, sans-serif';
+  context.fillStyle = '#ffffff';
+  context.fillText('AMDEN 1700 m', 18, 44);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const photo = new Mesh(new PlaneGeometry(0.84, 0.54), new MeshBasicMaterial({ map: texture }));
+  photo.material.userData.outlineParameters = { visible: false };
+  return photo;
+}
+
+/** Open-face flying helmet with a tinted visor and a sticker. Origin at its rim. */
+function createParaglidingHelmet(): Group {
+  const helmet = new Group();
+  const shell = sphere(0.15, toon(0xffd84a));
+  shell.scale.set(1, 0.85, 1.15);
+  shell.position.y = 0.1;
+  const visor = box(0.2, 0.06, 0.03, toon(0x3a4a5a));
+  visor.position.set(0, 0.07, 0.17);
+  visor.rotation.x = 0.3;
+  const sticker = sphere(0.04, toon(WING_BLUE));
+  sticker.scale.set(1, 1, 0.2);
+  sticker.position.set(0.11, 0.16, 0.06);
+  sticker.rotation.y = 1;
+  helmet.add(shell, visor, sticker);
+  return helmet;
+}
+
+/** Little model paraglider hanging from the ceiling: arched wing, lines, a tiny pilot. */
+function createModelGlider(): Group {
+  const glider = new Group();
+  const hanger = cylinder(0.004, 0.004, 0.25, toon(0xffffff));
+  hanger.position.y = -0.125;
+  glider.add(hanger);
+  const wingRadius = 0.5;
+  const wingTop = -0.25;
+  const pilot = new Vector3(0, wingTop - 0.55, 0);
+  const lineMaterial = toon(0xdddddd);
+  for (let cell = -4; cell <= 4; cell++) {
+    const angle = cell * 0.17;
+    const cellX = Math.sin(angle) * wingRadius;
+    const cellY = wingTop + (Math.cos(angle) - 1) * wingRadius;
+    const wingCell = box(0.11, 0.035, 0.22, toon([WING_ORANGE, 0xffffff, WING_BLUE][(cell + 4) % 3]));
+    wingCell.position.set(cellX, cellY, 0);
+    wingCell.rotation.z = -angle;
+    glider.add(wingCell);
+    if (cell % 2 === 0) {
+      // A line from the cell down to the pilot.
+      const deltaX = pilot.x - cellX;
+      const deltaY = pilot.y - cellY;
+      const line = cylinder(0.002, 0.002, Math.hypot(deltaX, deltaY), lineMaterial);
+      line.position.set((cellX + pilot.x) / 2, (cellY + pilot.y) / 2, 0);
+      line.rotation.z = Math.atan2(-deltaX, deltaY);
+      glider.add(line);
+    }
+  }
+  const harness = box(0.05, 0.05, 0.07, toon(STRAP_BLACK));
+  harness.position.copy(pilot);
+  const pilotHead = sphere(0.02, toon(0xffd84a));
+  pilotHead.position.set(pilot.x, pilot.y + 0.045, pilot.z);
+  glider.add(harness, pilotHead);
+  return glider;
+}
+
 function furnishFlat(): {
   root: Group;
   laptopLid: Group;
@@ -315,6 +592,8 @@ function furnishFlat(): {
   key: Group;
   keySparkle: Sprite;
   clockHand: Group;
+  ovenLamp: MeshToonMaterial;
+  modelGlider: Group;
 } {
   const root = new Group();
   const floorY = HOME.flatFloorY;
@@ -393,6 +672,8 @@ function furnishFlat(): {
   const fruitFly = sphere(0.012, toon(0x1a1a22));
   fruitFly.position.copy(HOME_SPOTS.bowl);
   root.add(bowl, peel, fruitFly);
+  const baking = createBakingCorner(floorY);
+  root.add(baking.root);
 
   // Key hook by the flat door.
   const door = box(0.04, 2.1, 0.9, toon(0xb07a4a));
@@ -413,15 +694,20 @@ function furnishFlat(): {
   key.add(fob, ring, keySparkle);
   root.add(key);
 
-  // Paraglider gear in the corner by the window.
-  const pack = box(0.5, 0.65, 0.35, toon(0xff6a2a));
-  pack.position.set(HOME_SPOTS.gear.x, floorY + 0.33, HOME_SPOTS.gear.z);
-  const packStripe = box(0.52, 0.08, 0.37, toon(0x39c0e0));
-  packStripe.position.set(HOME_SPOTS.gear.x, floorY + 0.45, HOME_SPOTS.gear.z);
-  const helmet = sphere(0.15, toon(0xffd84a));
-  helmet.scale.set(1, 0.8, 1.1);
-  helmet.position.set(HOME_SPOTS.gear.x + 0.25, floorY + 0.12, HOME_SPOTS.gear.z + 0.5);
-  root.add(pack, packStripe, helmet);
+  // Paraglider corner by the window: packed wing, helmet, a model glider and a souvenir poster.
+  const pack = createParagliderPack();
+  pack.position.set(HOME_SPOTS.gear.x, floorY, HOME_SPOTS.gear.z);
+  const helmet = createParaglidingHelmet();
+  helmet.position.set(HOME_SPOTS.gear.x + 0.35, floorY, HOME_SPOTS.gear.z + 0.45);
+  helmet.rotation.y = -0.6;
+  const modelGlider = createModelGlider();
+  modelGlider.position.set(-64.2, 6.3, 12.2);
+  const paraglidingPhoto = createParaglidingPhoto();
+  paraglidingPhoto.position.set(-65.75, 5.0, 14);
+  paraglidingPhoto.rotation.y = Math.PI / 2;
+  const photoBackFrame = box(0.02, 0.62, 0.92, toon(0x5a3a22));
+  photoBackFrame.position.set(-65.77, 5.0, 14);
+  root.add(pack, helmet, modelGlider, photoBackFrame, paraglidingPhoto);
 
   // Back wall: clock and a framed photo of the beloved B05.
   const clockFace = cylinder(0.25, 0.25, 0.04, toon(0xffffff));
@@ -465,5 +751,5 @@ function furnishFlat(): {
   const light = new PointLight(0xfff0d8, 3.5, 10, 2);
   light.position.set(-63, 5.2, 14);
   root.add(ceilingLamp, light);
-  return { root, laptopLid, fruitFly, key, keySparkle, clockHand };
+  return { root, laptopLid, fruitFly, key, keySparkle, clockHand, ovenLamp: baking.ovenLamp, modelGlider };
 }

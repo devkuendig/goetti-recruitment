@@ -24,6 +24,16 @@
         <button id="replay" class="film__button" type="button">↺ Nochmal</button>
       </section>
 
+      <form id="debug" class="film__debug" hidden>
+        <span id="debug-time" class="film__debug-time">0.0 s</span>
+        <label>
+          Springe zu
+          <input id="debug-seek" type="number" min="0" step="1" value="0" inputmode="numeric" /> s
+        </label>
+        <button class="film__debug-button" type="submit">⏩ Los</button>
+        <span>Leertaste = Pause</span>
+      </form>
+
       <p id="error" class="film__error" role="alert" hidden></p>
     </main>
     <script type="module" src="/src/film/main.ts"></script>

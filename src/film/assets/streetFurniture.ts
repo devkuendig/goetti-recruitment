@@ -32,7 +32,7 @@ export function furnishStreet(): Group {
   return street;
 }
 
-function createBench(): Group {
+export function createBench(): Group {
   const bench = new Group();
   const wood = toon(0xb07a4a);
   const metal = toon(0x3a3a40);
@@ -52,7 +52,7 @@ function createBench(): Group {
   return bench;
 }
 
-function createFlowerBox(): Group {
+export function createFlowerBox(): Group {
   const flowerBox = new Group();
   const planter = box(1.4, 0.45, 0.5, toon(0x8a6a4a));
   planter.position.y = 0.22;
@@ -71,8 +71,8 @@ function createFlowerBox(): Group {
   return flowerBox;
 }
 
-/** Bicycle seen side-on along x. */
-function createBike(frameColor: number): Group {
+/** Bicycle seen side-on along x, front (basket) towards -x. */
+export function createBike(frameColor: number): Group {
   const bike = new Group();
   const frame = toon(frameColor);
   const tyre = toon(0x1a1a1e);

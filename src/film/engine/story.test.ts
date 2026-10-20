@@ -73,6 +73,65 @@ describe('Story', () => {
     expect(loopSeconds).toBe(1);
   });
 
+  it('whenWaitingOnQuestion_thenFilmTimeOnlyCountsPlayedBeats', async () => {
+    const choice = choiceAnsweredWith(0);
+    const story = new Story(choice.present);
+    void story.play(new Timeline().tween(0, 2, () => undefined));
+
+    story.advance(2);
+    const picked = story.ask('Was tun?', [], new Timeline());
+    story.advance(10);
+    choice.answer();
+    await picked;
+
+    expect(story.filmTime).toBe(2);
+  });
+
+  it('whenPresetAnswersGiven_thenAskAnswersWithoutPresenting', async () => {
+    let presented = 0;
+    const story = new Story(() => {
+      presented++;
+      return Promise.resolve(0);
+    }, [2]);
+
+    const first = await story.ask('Erste?', []);
+    const second = await story.ask('Zweite?', []);
+
+    expect([first, second]).toEqual([2, 0]);
+    expect(presented).toBe(1);
+    expect(story.answers).toEqual([2, 0]);
+  });
+
+  it('whenFastForwarding_thenPlaysThroughBeatsUpToTarget', async () => {
+    const story = new Story(() => Promise.resolve(0));
+    let secondBeatSeconds = 0;
+    const script = async () => {
+      await story.play(new Timeline().tween(0, 1, () => undefined));
+      await story.play(new Timeline().tween(0, 3, (_progress, elapsed) => {
+        secondBeatSeconds = elapsed;
+      }));
+    };
+    void script();
+
+    await story.fastForwardTo(2.5, 0.25, () => undefined);
+
+    expect(story.filmTime).toBeCloseTo(2.5);
+    expect(secondBeatSeconds).toBeCloseTo(1.5);
+  });
+
+  it('whenFastForwardReachesOpenQuestion_thenStopsBeforeTarget', async () => {
+    const story = new Story(() => new Promise<number>(() => undefined));
+    const script = async () => {
+      await story.play(new Timeline().tween(0, 1, () => undefined));
+      await story.ask('Was tun?', [], new Timeline());
+    };
+    void script();
+
+    await story.fastForwardTo(10, 0.25, () => undefined);
+
+    expect(story.filmTime).toBeCloseTo(1);
+  });
+
   it('whenStopped_thenNothingAdvancesAndPlayNeverResolves', async () => {
     const story = new Story(() => Promise.resolve(0));
     let finished = false;

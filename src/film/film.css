@@ -211,6 +211,44 @@ body {
   outline-offset: 3px;
 }
 
+/* Debug bar (film.html?debug): film time, seek, pause hint. */
+.film__debug {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.85rem;
+}
+
+.film__debug[hidden] {
+  display: none;
+}
+
+.film__debug input {
+  width: 4.5rem;
+}
+
+.film__debug-time {
+  min-width: 4.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.film__debug-time--paused::after {
+  content: " ⏸";
+}
+
+.film__debug-button {
+  min-height: 44px;
+  cursor: pointer;
+}
+
 .film__error {
   position: absolute;
   bottom: 1rem;

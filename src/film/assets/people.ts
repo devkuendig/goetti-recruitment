@@ -1,5 +1,6 @@
 import { Group, MathUtils, Mesh, TorusGeometry, Vector3, type MeshToonMaterial, type Object3D } from 'three';
 import { box, cylinder, GLOW_INTENSITY, sphere, toon } from '../engine/build';
+import { createBike } from './streetFurniture';
 import { createPacifier } from './tunedCar';
 
 const SKIN = 0xf5c9a0;
@@ -14,9 +15,10 @@ export interface Kid {
   whistleMouth: Mesh;
   glintAnchor: Group;
   pacifier: Group;
-  sunglasses: Group;
-  /** Big eyes behind the sunglasses, hidden until the glasses are pushed up. */
+  /** Big round eyes; scale them up for wonder, squash them for a squint. */
   eyes: [Group, Group];
+  /** Raised for curiosity: tilt with `rotation.z`, lift with `position.y`. */
+  brows: [Mesh, Mesh];
 }
 
 const KID_HEAD_RADIUS = 0.21;
@@ -32,15 +34,25 @@ export function createKid(): Kid {
     root.add(pillow);
   });
 
-  const torso = box(0.26, 0.3, 0.18, toon(0xffffff));
+  // Pastel-yellow romper with polka dots and a bib with a red heart.
+  const torso = box(0.26, 0.3, 0.18, toon(0xfff0a0));
   torso.position.set(0, 0.36, 0.22);
   torso.rotation.x = 0.55;
-  const goldChain = new Mesh(new TorusGeometry(0.1, 0.012, 6, 20), toon(0xf2c230));
-  goldChain.rotation.x = Math.PI / 2 - 0.5;
-  goldChain.position.set(0, 0.46, 0.32);
-  root.add(torso, goldChain);
+  const bib = box(0.16, 0.14, 0.02, toon(0xffffff));
+  bib.position.set(0, 0.42, 0.33);
+  bib.rotation.x = 0.55;
+  const heart = sphere(0.025, toon(0xff4f6a));
+  heart.scale.set(1.2, 1, 0.4);
+  heart.position.set(0, 0.42, 0.345);
+  root.add(torso, bib, heart);
+  [[-0.08, 0.3], [0.09, 0.27], [0.06, 0.38], [-0.1, 0.4]].forEach(([x, y]) => {
+    const dot = sphere(0.015, toon(0x8fd3ff));
+    dot.scale.set(1, 1, 0.4);
+    dot.position.set(x, y, 0.23 + (y - 0.25) * 0.6);
+    root.add(dot);
+  });
 
-  // Oversized toddler head, leaning far out of the window so it reads from across the street.
+  // Oversized baby head.
   const head = new Group();
   head.position.set(0, 0.55, 0.5);
   root.add(head);
@@ -53,46 +65,48 @@ export function createKid(): Kid {
     blush.scale.set(1, 0.6, 0.4);
     head.add(ear, blush);
   }
-  const capMaterial = toon(0xe23b3b);
-  const cap = sphere(KID_HEAD_RADIUS + 0.01, capMaterial);
-  cap.scale.set(1, 0.55, 1);
-  cap.position.y = 0.08;
-  const brim = box(0.2, 0.025, 0.16, capMaterial);
-  brim.position.set(0, 0.1, -0.24);
-  head.add(cap, brim);
+  const nose = sphere(0.022, skin);
+  nose.position.set(0, -0.02, 0.205);
+  head.add(nose);
+  // A soft curl on top and a few wisps — a happy little haystack.
+  const hairMaterial = toon(0xc98a3a);
+  const curl = new Mesh(new TorusGeometry(0.035, 0.012, 6, 14, Math.PI * 1.5), hairMaterial);
+  curl.position.set(0.02, KID_HEAD_RADIUS + 0.02, 0.05);
+  curl.rotation.set(0, Math.PI / 2, 0.4);
+  head.add(curl);
+  [-0.06, 0.06].forEach((x) => {
+    const wisp = cylinder(0.01, 0.004, 0.07, hairMaterial);
+    wisp.position.set(x, KID_HEAD_RADIUS - 0.005, 0.02);
+    wisp.rotation.z = -x * 6;
+    head.add(wisp);
+  });
 
-  const sunglasses = new Group();
-  sunglasses.position.set(0, 0.04, 0.19);
-  for (const side of [-1, 1]) {
-    const lens = box(0.13, 0.075, 0.03, toon(INK));
-    lens.position.x = side * 0.075;
-    sunglasses.add(lens);
-  }
-  const bridge = box(0.03, 0.015, 0.02, toon(INK));
-  sunglasses.add(bridge);
-  head.add(sunglasses);
   const eyes = [-1, 1].map((side) => {
     const eye = new Group();
     eye.position.set(side * 0.075, 0.04, 0.165);
-    eye.visible = false;
-    const white = sphere(0.04, toon(0xffffff));
+    const white = sphere(0.045, toon(0xffffff));
     white.scale.set(1, 1.15, 0.8);
-    const pupil = sphere(0.022, toon(INK));
-    pupil.position.set(0, -0.005, 0.03);
-    const highlight = sphere(0.007, toon(0xffffff));
-    highlight.position.set(0.008, 0.008, 0.05);
-    eye.add(white, pupil, highlight);
+    const iris = sphere(0.03, toon(0x6a4a2a));
+    iris.position.set(0, -0.005, 0.025);
+    const pupil = sphere(0.018, toon(INK));
+    pupil.position.set(0, -0.005, 0.04);
+    const highlight = sphere(0.009, toon(0xffffff));
+    highlight.position.set(0.01, 0.012, 0.055);
+    eye.add(white, iris, pupil, highlight);
     head.add(eye);
     return eye;
   }) as [Group, Group];
+  // Brows raised high — everything is interesting.
+  const brows = [-1, 1].map((side) => {
+    const brow = box(0.05, 0.01, 0.01, hairMaterial);
+    brow.position.set(side * 0.075, 0.115, 0.18);
+    brow.rotation.z = side * -0.25;
+    head.add(brow);
+    return brow;
+  }) as [Mesh, Mesh];
   const glintAnchor = new Group();
   glintAnchor.position.set(0.1, 0.06, 0.22);
   head.add(glintAnchor);
-
-  const tattoo = createPacifier(0x2a3f8f, 0.25);
-  tattoo.position.set(-0.14, -0.04, 0.15);
-  tattoo.rotation.set(0, -0.7, 0.4);
-  head.add(tattoo);
 
   const whistleMouth = sphere(0.025, toon(0x9b2d3a));
   whistleMouth.position.set(0, -0.1, 0.195);
@@ -118,7 +132,7 @@ export function createKid(): Kid {
     node.receiveShadow = false;
   });
 
-  return { root, head, wavingArm, whistleMouth, glintAnchor, pacifier, sunglasses, eyes };
+  return { root, head, wavingArm, whistleMouth, glintAnchor, pacifier, eyes, brows };
 }
 
 export interface Pram {
@@ -222,7 +236,8 @@ export interface Passerby {
   dizzyStars: Group;
 }
 
-export type HairStyle = 'short' | 'bun' | 'ponytail' | 'bald' | 'hat';
+/** `tufts`: a toddler's first few wisps on an otherwise bare head. */
+export type HairStyle = 'short' | 'bun' | 'ponytail' | 'bald' | 'hat' | 'tufts' | 'long';
 
 export interface PasserbyLook {
   shirt: number;
@@ -233,9 +248,47 @@ export interface PasserbyLook {
   shoes?: number;
   glasses?: boolean;
   beard?: boolean;
+  /** Three-day stubble: a thin dark shadow over the lower face. */
+  stubble?: boolean;
+  /** Hibiscus flowers printed all over the shirt. */
+  hawaiiShirt?: boolean;
+  /** A dress in this colour, flaring from the waist to the knees. */
+  dress?: number;
+  /** A pearl necklace in this colour. */
+  necklace?: number;
   headband?: number;
   bag?: number;
   backpack?: number;
+}
+
+/** [x, y offset from the torso centre, colour] — alternating front and back. */
+const HAWAII_FLOWERS: readonly [number, number, number][] = [
+  [-0.13, 0.2, 0xff4f5a],
+  [0.1, 0.18, 0xffe14a],
+  [0.12, -0.02, 0xffffff],
+  [-0.12, 0, 0xff4f5a],
+  [-0.05, -0.2, 0xffe14a],
+  [0.1, -0.22, 0xff4f5a],
+  [0.02, 0.06, 0xff4f5a],
+  [-0.02, -0.1, 0xffffff],
+];
+
+/** Five round petals around a yellow centre, flat against a surface facing ±z. */
+function createFlower(color: number, x: number, y: number, z: number, facing: 1 | -1): Group {
+  const flower = new Group();
+  flower.position.set(x, y, z);
+  const petalMaterial = toon(color);
+  for (let petal = 0; petal < 5; petal++) {
+    const angle = (petal * Math.PI * 2) / 5;
+    const leaf = sphere(0.028, petalMaterial);
+    leaf.scale.set(1, 1, 0.25);
+    leaf.position.set(Math.cos(angle) * 0.03, Math.sin(angle) * 0.03, 0);
+    flower.add(leaf);
+  }
+  const center = sphere(0.014, toon(0xffb020));
+  center.position.z = facing * 0.006;
+  flower.add(center);
+  return flower;
 }
 
 const SCHOOLKID_SCALE = 0.75;
@@ -245,6 +298,32 @@ export function createSchoolkid(look: PasserbyLook): Passerby {
   const pupil = createPasserby(look);
   pupil.root.scale.setScalar(SCHOOLKID_SCALE);
   return pupil;
+}
+
+const TODDLER_SCALE = 0.5;
+const TODDLER_HEAD_SCALE = 1.5;
+
+/** A two-year-old: knee-high to the grown-ups, big head, rosy cheeks, a big grin and a hair bow. */
+export function createToddler(look: PasserbyLook, bowColor: number): Passerby {
+  const toddler = createPasserby(look);
+  toddler.root.scale.setScalar(TODDLER_SCALE);
+  toddler.head.scale.setScalar(TODDLER_HEAD_SCALE);
+  toddler.mouth.scale.set(1.7, 0.6, 0.5);
+  const blushMaterial = toon(0xff9a9a);
+  const bowMaterial = toon(bowColor);
+  for (const side of [-1, 1]) {
+    const blush = sphere(0.03, blushMaterial);
+    blush.scale.set(1, 0.6, 0.4);
+    blush.position.set(side * 0.1, 0.09, 0.14);
+    const loop = sphere(0.04, bowMaterial);
+    loop.scale.set(1.2, 0.8, 0.5);
+    loop.position.set(0.06 + side * 0.045, 0.3, 0.02);
+    toddler.head.add(blush, loop);
+  }
+  const knot = sphere(0.02, bowMaterial);
+  knot.position.set(0.06, 0.3, 0.03);
+  toddler.head.add(knot);
+  return toddler;
 }
 
 export function createPasserby(look: PasserbyLook): Passerby {
@@ -273,6 +352,24 @@ export function createPasserby(look: PasserbyLook): Passerby {
   const neck = cylinder(0.06, 0.06, 0.1, skin);
   neck.position.y = 1.6;
   root.add(torso, belt, collar, neck);
+  if (look.hawaiiShirt) {
+    // Hibiscus print, front and back.
+    HAWAII_FLOWERS.forEach(([x, y, color], index) => {
+      const side = index % 2 === 0 ? 1 : -1;
+      root.add(createFlower(color, x, 1.23 + y, side * 0.131, side));
+    });
+  }
+  if (look.dress !== undefined) {
+    const skirt = cylinder(0.26, 0.4, 0.52, toon(look.dress));
+    skirt.position.y = 0.68;
+    root.add(skirt);
+  }
+  if (look.necklace !== undefined) {
+    const necklace = new Mesh(new TorusGeometry(0.1, 0.014, 6, 18), toon(look.necklace));
+    necklace.rotation.x = Math.PI / 2 - 0.35;
+    necklace.position.set(0, 1.55, 0.04);
+    root.add(necklace);
+  }
 
   const arms = [-1, 1].map((side) => {
     const shoulder = new Group();
@@ -282,6 +379,9 @@ export function createPasserby(look: PasserbyLook): Passerby {
     const hand = sphere(0.07, skin);
     hand.position.y = -0.63;
     shoulder.add(arm, hand);
+    if (look.hawaiiShirt) {
+      shoulder.add(createFlower(side === 1 ? 0xffe14a : 0xff4f5a, 0, -0.18, 0.066, 1));
+    }
     root.add(shoulder);
     return shoulder;
   }) as [Group, Group];
@@ -336,6 +436,13 @@ export function createPasserby(look: PasserbyLook): Passerby {
     beard.position.set(0, 0.03, 0.06);
     head.add(beard);
   }
+  if (look.stubble) {
+    // Just a light shadow along the jaw and chin.
+    const stubble = sphere(0.171, toon(0xb08e72));
+    stubble.scale.set(0.95, 0.38, 0.96);
+    stubble.position.set(0, 0.03, 0.005);
+    head.add(stubble);
+  }
   if (look.headband !== undefined) {
     const band = cylinder(0.175, 0.175, 0.04, toon(look.headband));
     band.position.y = 0.24;
@@ -368,6 +475,15 @@ function addHair(head: Group, style: HairStyle, material: MeshToonMaterial): voi
     head.add(fringe);
     return;
   }
+  if (style === 'tufts') {
+    [-0.5, 0, 0.45].forEach((tilt, index) => {
+      const wisp = cylinder(0.012, 0.004, 0.09, material);
+      wisp.position.set(tilt * 0.06, 0.32 - index * 0.005, 0.02 - index * 0.02);
+      wisp.rotation.z = -tilt;
+      head.add(wisp);
+    });
+    return;
+  }
   const cap = sphere(0.18, material);
   cap.position.set(0, 0.19, -0.03);
   cap.scale.set(1, 0.7, 1);
@@ -381,6 +497,21 @@ function addHair(head: Group, style: HairStyle, material: MeshToonMaterial): voi
     tail.position.set(0, 0.12, -0.2);
     tail.rotation.x = 0.4;
     head.add(tail);
+  } else if (style === 'long') {
+    // Open hair falling over the back and both sides down to the shoulders, with a side parting.
+    const back = box(0.34, 0.42, 0.1, material);
+    back.position.set(0, -0.02, -0.14);
+    head.add(back);
+    for (const side of [-1, 1]) {
+      const strand = box(0.07, 0.36, 0.2, material);
+      strand.position.set(side * 0.16, 0.02, -0.03);
+      strand.rotation.z = side * 0.06;
+      head.add(strand);
+    }
+    const parting = sphere(0.1, material);
+    parting.scale.set(1.2, 0.45, 0.9);
+    parting.position.set(0.05, 0.27, 0.07);
+    head.add(parting);
   } else if (style === 'hat') {
     const hatMaterial = toon(0x4a5a3a);
     const brim = cylinder(0.27, 0.27, 0.02, hatMaterial);
@@ -394,7 +525,32 @@ function addHair(head: Group, style: HairStyle, material: MeshToonMaterial): voi
   }
 }
 
-/** Swings legs and arms; `phase` is any monotonically increasing value (e.g. distance walked). */
+export interface Cyclist {
+  /** Bike and rider; rides towards -x. */
+  root: Group;
+  rider: Passerby;
+}
+
+export function createCyclist(frameColor: number, look: PasserbyLook): Cyclist {
+  const root = new Group();
+  const rider = createPasserby(look);
+  // Characters face +z; turn the rider towards the handlebar and sit them on the saddle.
+  rider.root.rotation.set(0.25, -Math.PI / 2, 0, 'YXZ');
+  rider.root.position.set(0.2, -0.05, 0);
+  rider.arms.forEach((arm) => {
+    arm.rotation.x = -1.2;
+  });
+  root.add(createBike(frameColor), rider.root);
+  return { root, rider };
+}
+
+/** Pedalling: legs go round, arms stay on the handlebar. */
+export function pedal(cyclist: Cyclist, phase: number): void {
+  cyclist.rider.legs[0].rotation.x = -0.9 + Math.sin(phase) * 0.45;
+  cyclist.rider.legs[1].rotation.x = -0.9 - Math.sin(phase) * 0.45;
+}
+
+/** Swings legs and arms;`phase` is any monotonically increasing value (e.g. distance walked). */
 export function walkCycle(person: Passerby, phase: number, amplitude = 0.5): void {
   const swing = Math.sin(phase) * amplitude;
   person.legs[0].rotation.x = swing;

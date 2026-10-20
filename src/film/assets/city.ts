@@ -62,7 +62,24 @@ export const RAILWAY = {
   trackX: [78.5, 81.5],
 } as const;
 
+/**
+ * Side street branching off to the right (+z) just past the zebra crossing. The corner house hides
+ * it from Zürcherstrasse. Its contents are built in "street frame" — the same layout as the main
+ * street (road along local x, +z lane = towards the viewer) — inside `City.sideStreet`, which is
+ * turned so local +x runs along world +z: world = (centerX − local z, y, local x − offsetX).
+ */
+export const SIDE_STREET = {
+  /** Turns street-frame +x (and everything facing it) to world +z. */
+  yaw: -Math.PI / 2,
+  centerX: 46,
+  offsetX: 17.5,
+  /** Local x range of the side street (world z from the main street's curb onwards). */
+  startX: 17.5 + 6.5,
+  endX: 120,
+} as const;
+
 const BUILDING_DEPTH = 8;
+const MIN_HOUSE_WIDTH = 4;
 const FLOOR_HEIGHT = 3;
 const SKY_HORIZON = new Color(0xe6f5ff);
 const SKY_ZENITH = new Color(0x56aef0);
@@ -89,7 +106,20 @@ export interface City {
   migrosDoors: [Mesh, Mesh];
   /** Shadow-casting sun. Its shadow box only covers ±40 m — use `followWithSun` when filming far from the origin. */
   sun: DirectionalLight;
+  /** Frame of the side street (see `SIDE_STREET`); add things to it in street-frame coordinates. */
+  sideStreet: Group;
 }
+
+/** Converts a street-frame point of the side street to world coordinates. */
+export function sideStreetToWorld(local: Vector3, out: Vector3 = new Vector3()): Vector3 {
+  return out.set(SIDE_STREET.centerX - local.z, local.y, local.x - SIDE_STREET.offsetX);
+}
+
+/** Where the side street meets Zürcherstrasse: no houses, no curb across its mouth. */
+const SIDE_STREET_MOUTH = {
+  buildings: { start: SIDE_STREET.centerX - FACADE_Z, end: SIDE_STREET.centerX + FACADE_Z },
+  road: { start: SIDE_STREET.centerX - CITY.curbZ, end: SIDE_STREET.centerX + CITY.curbZ },
+} as const;
 
 const SUN_DISTANCE = 40;
 
@@ -107,8 +137,11 @@ export function createCity(scene: Scene): City {
 
   const root = new Group();
   root.add(createGround());
-  root.add(createBuildingRow(1));
-  root.add(createBuildingRow(-1));
+  root.add(createBuildingRow({ side: 1, fromX: -60, toX: 70, firstIndex: 0, gaps: [SIDE_STREET_MOUTH.buildings] }));
+  // Past the Migros the far side opens onto the station square — no more houses.
+  root.add(createBuildingRow({ side: -1, fromX: -60, toX: MIGROS.startX, firstIndex: 3, gaps: [] }));
+  const sideStreet = createSideStreet();
+  root.add(sideStreet);
   const migros = createMigros();
   root.add(migros.root);
   root.add(createRailwayBridge());
@@ -136,7 +169,7 @@ export function createCity(scene: Scene): City {
   });
 
   scene.add(root);
-  return { root, lampPost, clouds, catTail: cat.tail, migrosDoors: migros.doors, sun };
+  return { root, lampPost, clouds, catTail: cat.tail, migrosDoors: migros.doors, sun, sideStreet };
 }
 
 function addLighting(scene: Scene): DirectionalLight {
@@ -186,25 +219,64 @@ function createSkyDome(): Group {
   return sky;
 }
 
-function createGround(): Group {
-  const batch = new GeometryBatch();
+interface Span {
+  start: number;
+  end: number;
+}
+
+/** The parts of [from, to] not covered by any gap. */
+function spansAround(from: number, to: number, gaps: readonly Span[]): Span[] {
+  const spans: Span[] = [];
+  let start = from;
+  for (const gap of [...gaps].sort((first, second) => first.start - second.start)) {
+    if (gap.start > start) {
+      spans.push({ start, end: Math.min(gap.start, to) });
+    }
+    start = Math.max(start, gap.end);
+  }
+  if (start < to) {
+    spans.push({ start, end: to });
+  }
+  return spans;
+}
+
+interface StreetLayout {
+  /** Road along x from `roadFromX` to `toX`; sidewalks only from `sidewalkFromX`. */
+  roadFromX: number;
+  sidewalkFromX: number;
+  toX: number;
+  /** Stretches of the near (+z) sidewalk left open for a side street. */
+  nearSidewalkGaps: readonly Span[];
+}
+
+/** Road, curbs, sidewalks and markings of one street, in street frame (road along x). */
+function addStreetSurface(batch: GeometryBatch, layout: StreetLayout): void {
+  const { roadFromX, sidewalkFromX, toX, nearSidewalkGaps } = layout;
   const sidewalkWidth = FACADE_Z - CITY.curbZ;
   const sidewalkCenter = CITY.curbZ + sidewalkWidth / 2;
-  batch.box([200, 0.1, CITY.curbZ * 2], 0x5b6070, [0, -0.05, 0]);
+  batch.box([toX - roadFromX, 0.1, CITY.curbZ * 2], 0x5b6070, [(roadFromX + toX) / 2, -0.05, 0]);
   for (const side of [1, -1]) {
-    batch.box([200, 0.2, sidewalkWidth], 0xd9d2c5, [0, 0, side * sidewalkCenter]);
-    batch.box([200, 0.22, 0.2], 0xb9b2a5, [0, 0, side * (CITY.curbZ + 0.05)]);
-    // Paving joints so the sidewalk doesn't read as one flat slab.
-    for (let x = -100; x < 100; x += 1.5) {
-      batch.box([0.03, 0.005, sidewalkWidth - 0.1], 0xc4bcae, [x, 0.1, side * sidewalkCenter]);
+    for (const { start, end } of spansAround(sidewalkFromX, toX, side === 1 ? nearSidewalkGaps : [])) {
+      const center = (start + end) / 2;
+      batch.box([end - start, 0.2, sidewalkWidth], 0xd9d2c5, [center, 0, side * sidewalkCenter]);
+      batch.box([end - start, 0.22, 0.2], 0xb9b2a5, [center, 0, side * (CITY.curbZ + 0.05)]);
+      // Paving joints so the sidewalk doesn't read as one flat slab.
+      for (let x = start + 0.75; x < end; x += 1.5) {
+        batch.box([0.03, 0.005, sidewalkWidth - 0.1], 0xc4bcae, [x, 0.1, side * sidewalkCenter]);
+      }
     }
     // Dashed divider between the two lanes of one direction.
-    for (let x = -100; x < 100; x += 6) {
+    for (let x = sidewalkFromX + 1.5; x < toX; x += 6) {
       batch.box([3, 0.02, 0.15], 0xeeeee4, [x, 0.01, side * CITY.laneWidth]);
     }
     // Solid double centre line between the two directions.
-    batch.box([200, 0.02, 0.12], 0xeeeee4, [0, 0.01, side * 0.12]);
+    batch.box([toX - sidewalkFromX, 0.02, 0.12], 0xeeeee4, [(sidewalkFromX + toX) / 2, 0.01, side * 0.12]);
   }
+}
+
+function createGround(): Group {
+  const batch = new GeometryBatch();
+  addStreetSurface(batch, { roadFromX: -100, sidewalkFromX: -100, toX: 100, nearSidewalkGaps: [SIDE_STREET_MOUTH.road] });
   // Painted parking bay around the B05.
   for (const x of [0.4, 5.6]) {
     batch.box([0.1, 0.015, 2.1], 0xffffff, [x, 0.01, CITY.parkingZ]);
@@ -213,34 +285,78 @@ function createGround(): Group {
   return batch.build();
 }
 
-function createBuildingRow(side: 1 | -1): Group {
+/** The side street's own road and houses, built in street frame and turned into place. */
+function createSideStreet(): Group {
+  const frame = new Group();
+  frame.rotation.y = SIDE_STREET.yaw;
+  frame.position.set(SIDE_STREET.centerX, 0, -SIDE_STREET.offsetX);
+  const batch = new GeometryBatch();
+  // Its sidewalks start where Zürcherstrasse's end, so the two never overlap.
+  const sidewalkFromX = SIDE_STREET.offsetX + FACADE_Z;
+  addStreetSurface(batch, { roadFromX: SIDE_STREET.startX, sidewalkFromX, toX: SIDE_STREET.endX, nearSidewalkGaps: [] });
+  // A house across the far end closes the street off.
+  batch.box([BUILDING_DEPTH, 14, 2 * (FACADE_Z + BUILDING_DEPTH)], BUILDING_COLORS[2], [SIDE_STREET.endX + BUILDING_DEPTH / 2, 7, 0]);
+  frame.add(batch.build());
+  // The corner houses belong to Zürcherstrasse; the side street's rows start behind them.
+  const rowFromX = sidewalkFromX + BUILDING_DEPTH;
+  frame.add(createBuildingRow({ side: 1, fromX: rowFromX, toX: SIDE_STREET.endX, firstIndex: 5, gaps: [] }));
+  frame.add(createBuildingRow({ side: -1, fromX: rowFromX, toX: SIDE_STREET.endX, firstIndex: 2, gaps: [] }));
+  // The second tree stands well beyond where Alain meets the family (street-frame x ≈ 63–66).
+  for (const x of [rowFromX + 6, rowFromX + 50]) {
+    frame.add(createTree(x, FACADE_Z - 0.7));
+  }
+  return frame;
+}
+
+interface BuildingRowLayout {
+  side: 1 | -1;
+  fromX: number;
+  toX: number;
+  /** Varies widths, heights and colours between rows. */
+  firstIndex: number;
+  /** Stretches left free of houses (e.g. a side street). Houses next to a gap are trimmed. */
+  gaps: readonly Span[];
+}
+
+function createBuildingRow(layout: BuildingRowLayout): Group {
+  const { side } = layout;
   const row = new Group();
   const batch = new GeometryBatch();
   const front = side * FACADE_Z;
   const outward = -side;
-  let x = -60;
-  let index = side === 1 ? 0 : 3;
-  while (x < 70) {
-    const reachesMigros = side === -1 && x < MIGROS.endX;
-    if (reachesMigros && x >= MIGROS.startX) {
-      // Past the Migros the far side opens onto the station square — no more houses.
-      break;
+  let index = layout.firstIndex;
+  for (const span of spansAround(layout.fromX, layout.toX, layout.gaps)) {
+    for (let x = span.start; x < span.end; ) {
+      const naturalWidth = 7 + ((index * 3) % 4);
+      // The last house before a gap or the row's end stretches or shrinks to fit — no slivers.
+      const remaining = span.end - x;
+      const width = remaining - naturalWidth < MIN_HOUSE_WIDTH ? remaining : naturalWidth;
+      addHouse(batch, row, x, width, side, front, outward, index);
+      x += width;
+      index++;
     }
-    const naturalWidth = 7 + ((index * 3) % 4);
-    // The last house before the Migros is trimmed so the two don't overlap.
-    const width = reachesMigros ? Math.min(naturalWidth, MIGROS.startX - x) : naturalWidth;
-    const height = 9 + ((index * 5) % 7);
-    const centerX = x + width / 2;
-    const wallColor = BUILDING_COLORS[index % BUILDING_COLORS.length];
-    batch.box([width, height, BUILDING_DEPTH], wallColor, [centerX, height / 2, side * (FACADE_Z + BUILDING_DEPTH / 2)]);
-    addRoof(batch, centerX, width, height, side);
-    addShopFront(batch, row, centerX, width, front, outward, index);
-    addWindows(batch, x, width, height, front, outward, index);
-    x += width;
-    index++;
   }
   row.add(batch.build());
   return row;
+}
+
+function addHouse(
+  batch: GeometryBatch,
+  row: Group,
+  x: number,
+  width: number,
+  side: 1 | -1,
+  front: number,
+  outward: number,
+  index: number,
+): void {
+  const height = 9 + ((index * 5) % 7);
+  const centerX = x + width / 2;
+  const wallColor = BUILDING_COLORS[index % BUILDING_COLORS.length];
+  batch.box([width, height, BUILDING_DEPTH], wallColor, [centerX, height / 2, side * (FACADE_Z + BUILDING_DEPTH / 2)]);
+  addRoof(batch, centerX, width, height, side);
+  addShopFront(batch, row, centerX, width, front, outward, index);
+  addWindows(batch, x, width, height, front, outward, index);
 }
 
 /** Flat roof with a cornice, as along Zürcherstrasse. */

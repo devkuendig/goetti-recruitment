@@ -1,4 +1,5 @@
 export const HIPHOP_BPM = 90;
+const MASTER_VOLUME = 0.8;
 
 /** One bar of sixteenth-note steps (0–15); bassline/chord in Hz (E minor). */
 const BOOM_BAP: Record<'kick' | 'snare' | 'stab' | 'bassline' | 'chord', readonly number[]> = {
@@ -20,9 +21,19 @@ export class SoundBoard {
 
   constructor() {
     this.master = this.context.createGain();
-    this.master.gain.value = 0.8;
+    this.master.gain.value = MASTER_VOLUME;
     this.master.connect(this.context.destination);
     this.noiseBuffer = this.createNoiseBuffer(2);
+  }
+
+  /** Silences everything, e.g. while fast-forwarding through a burst of cues. */
+  setMuted(isMuted: boolean): void {
+    this.master.gain.value = isMuted ? 0 : MASTER_VOLUME;
+  }
+
+  /** Freezes or continues audio time, so scheduled sounds wait while the film is paused. */
+  setPaused(isPaused: boolean): void {
+    void (isPaused ? this.context.suspend() : this.context.resume());
   }
 
   /** Low city rumble plus the odd bird chirp. */
@@ -65,6 +76,24 @@ export class SoundBoard {
     const now = this.context.currentTime;
     this.tone('square', 1760, 1760, now, 0.08, 0.06);
     this.tone('square', 1760, 1760, now + 0.15, 0.08, 0.06);
+  }
+
+  /** Fruit-fly swarm: a wobbly, nasal hum. */
+  buzz(durationSeconds: number): void {
+    const now = this.context.currentTime;
+    for (let start = 0; start < durationSeconds; start += 0.4) {
+      const pitch = 210 + Math.random() * 60;
+      this.tone('sawtooth', pitch, pitch * (0.9 + Math.random() * 0.2), now + start, 0.45, 0.025);
+    }
+  }
+
+  /** Bicycle bell: "dring-dring". */
+  bikeBell(): void {
+    const now = this.context.currentTime;
+    for (const offset of [0, 0.18]) {
+      this.tone('triangle', 3950, 3900, now + offset, 0.25, 0.08);
+      this.tone('sine', 5300, 5300, now + offset, 0.15, 0.03);
+    }
   }
 
   /** Cartoon "ping" for sparkles and glints. */
@@ -125,6 +154,20 @@ export class SoundBoard {
   click(): void {
     const now = this.context.currentTime;
     this.tone('square', 2200, 1400, now, 0.03, 0.08);
+  }
+
+  /** Slow-motion leap: a deep, drawn-out rush of air over a falling bass "booom". */
+  slowMotion(durationSeconds: number): void {
+    const now = this.context.currentTime;
+    this.noiseHit(now, 'lowpass', 420, durationSeconds, 0.35, this.master);
+    this.tone('sine', 110, 38, now, durationSeconds, 0.4);
+  }
+
+  /** Heartbeat thump-thump, felt more than heard. */
+  heartbeat(): void {
+    const now = this.context.currentTime;
+    this.tone('sine', 70, 45, now, 0.16, 0.5);
+    this.tone('sine', 65, 42, now + 0.22, 0.14, 0.4);
   }
 
   plop(): void {

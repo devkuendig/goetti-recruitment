@@ -1,9 +1,9 @@
 import { Group, Vector3 } from 'three';
 import { B05_WHEEL_RADIUS, createB05, createB05Cockpit, type B05, type B05Cockpit } from '../assets/b05';
 import { createBananaCargo, type BananaCargo } from '../assets/bananas';
-import { CITY, createCity, followWithSun, RAILWAY, type City } from '../assets/city';
+import { CITY, createCity, followWithSun, RAILWAY, SIDE_STREET, type City } from '../assets/city';
 import { createHome, HOME, type Home } from '../assets/home';
-import { createDog, createPasserby, createPovHands, walkCycle, type PovHands } from '../assets/people';
+import { createCyclist, createDog, createPasserby, createPovHands, pedal, walkCycle, type PovHands } from '../assets/people';
 import { createTrain, createZebraCrossing, furnishStreet } from '../assets/streetFurniture';
 import { setOutlineThickness } from '../engine/build';
 import type { SoundBoard } from '../engine/audio';
@@ -27,15 +27,27 @@ const GARAGE_PARKED_Z = 14;
 /** Centre of the outer eastbound lane. */
 export const LANE_Z = CITY.laneWidth * 1.5;
 const EXIT_LENGTH = GARAGE_PARKED_Z - LANE_Z - TURN_RADIUS;
+/** Right turn from Zürcherstrasse into the side street, ending in its outer lane. */
+const SIDE_TURN_RADIUS = 6;
+const SIDE_TURN_START_X = SIDE_STREET.centerX - LANE_Z - SIDE_TURN_RADIUS;
 export const ROUTE = new Route({ x: HOME.garageDoorX, z: GARAGE_PARKED_Z, heading: -Math.PI / 2 })
   .line(EXIT_LENGTH)
   .arc(TURN_RADIUS, Math.PI / 2)
-  .line(150);
+  .line(SIDE_TURN_START_X - TURN_END_X)
+  .arc(SIDE_TURN_RADIUS, Math.PI / 2)
+  .line(SIDE_STREET.endX - SIDE_STREET.startX);
 const TURN_END_DISTANCE = EXIT_LENGTH + (TURN_RADIUS * Math.PI) / 2;
+const SIDE_TURN_END_DISTANCE = TURN_END_DISTANCE + (SIDE_TURN_START_X - TURN_END_X) + (SIDE_TURN_RADIUS * Math.PI) / 2;
+const SIDE_TURN_END_WORLD_Z = LANE_Z + SIDE_TURN_RADIUS;
 
 /** Route distance at which the car's centre is at `x` on the straight part of Zürcherstrasse. */
 export function routeDistanceAtX(x: number): number {
   return TURN_END_DISTANCE + (x - TURN_END_X);
+}
+
+/** Route distance at which the car's centre is at street-frame `x` in the side street. */
+function routeDistanceAtSideStreetX(x: number): number {
+  return SIDE_TURN_END_DISTANCE + (x - SIDE_STREET.offsetX - SIDE_TURN_END_WORLD_Z);
 }
 
 export const ZEBRA_X = 32;
@@ -43,8 +55,11 @@ export const STOPS = {
   /** Nose just out on the sidewalk, still turning. */
   turnEnd: TURN_END_DISTANCE,
   crossing: routeDistanceAtX(ZEBRA_X - 4.6),
-  bananas: routeDistanceAtX(38),
-  parking: routeDistanceAtX(60),
+  /** Start of the right turn into the side street. */
+  sideTurnStart: routeDistanceAtX(SIDE_TURN_START_X),
+  sideTurnEnd: SIDE_TURN_END_DISTANCE,
+  bananas: routeDistanceAtSideStreetX(38),
+  parking: routeDistanceAtSideStreetX(60),
 } as const;
 
 export type View = 'driver' | 'walker' | 'free';
@@ -183,6 +198,12 @@ export function currentLookTarget(world: World): Vector3 {
 
 const TRAIN_PERIOD_SECONDS = 28;
 const TRAIN_CROSSING_SECONDS = 9;
+const CYCLIST_PERIOD_SECONDS = 45;
+const CYCLIST_RIDE_SECONDS = 32;
+const CYCLIST_FROM_X = 74;
+const CYCLIST_TO_X = -50;
+const CYCLIST_BELL_RANGE = 20;
+const CYCLIST_BELL_INTERVAL_SECONDS = 3.5;
 
 /**
  * Everything that just keeps living for the whole film: clouds, sparkles, the cat, trains on the
@@ -218,7 +239,17 @@ export function buildAmbience(world: World): Timeline {
   const dog = createDog();
   dog.root.position.set(15.6, 0, -7.8);
   dog.root.rotation.y = 1.1;
-  [jogger.root, dogOwner.root, dog.root].forEach((root) => {
+  // The annoying cyclist: slaloms down the middle of the far lane, never stops ringing.
+  const cyclist = createCyclist(0xff4f8a, {
+    shirt: 0xc6f03a,
+    trousers: 0x222228,
+    hair: 0x4a2f1b,
+    hairStyle: 'short',
+    glasses: true,
+    backpack: 0xff8a1e,
+  });
+  let lastBellTime = Number.NEGATIVE_INFINITY;
+  [jogger.root, dogOwner.root, dog.root, cyclist.root].forEach((root) => {
     setOutlineThickness(root, OUTLINE.character);
     scene.add(root);
   });
@@ -246,6 +277,24 @@ export function buildAmbience(world: World): Timeline {
     const joggerX = lerp(-40, 70, lap);
     jogger.root.position.set(joggerX, Math.abs(Math.sin(joggerX * 2.2)) * 0.06, -8);
     walkCycle(jogger, joggerX * 2.2, 0.9);
+
+    // Cyclist: one westbound ride every CYCLIST_PERIOD_SECONDS, out from under the railway bridge.
+    const rideSeconds = elapsed % CYCLIST_PERIOD_SECONDS;
+    const isRiding = rideSeconds < CYCLIST_RIDE_SECONDS;
+    cyclist.root.visible = isRiding;
+    if (isRiding) {
+      const cyclistX = lerp(CYCLIST_FROM_X, CYCLIST_TO_X, rideSeconds / CYCLIST_RIDE_SECONDS);
+      const weave = Math.sin(rideSeconds * 1.6);
+      cyclist.root.position.set(cyclistX, 0, CITY.farOuterLaneZ + weave * 0.6);
+      cyclist.root.rotation.set(weave * 0.12, Math.cos(rideSeconds * 1.6) * 0.3, 0, 'YXZ');
+      pedal(cyclist, rideSeconds * 6);
+      const isNearCamera = cyclist.root.position.distanceTo(cameraWorld) < CYCLIST_BELL_RANGE;
+      if (isNearCamera && elapsed - lastBellTime > CYCLIST_BELL_INTERVAL_SECONDS) {
+        lastBellTime = elapsed;
+        world.sounds.bikeBell();
+        world.callouts.show('DRING DRING!', cyclist.rider.head, 1.2, 0.4);
+      }
+    }
 
     const trainCycle = Math.floor(elapsed / TRAIN_PERIOD_SECONDS);
     const trainProgress = Math.min(1, (elapsed % TRAIN_PERIOD_SECONDS) / TRAIN_CROSSING_SECONDS);

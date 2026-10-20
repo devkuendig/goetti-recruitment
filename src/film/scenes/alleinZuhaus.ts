@@ -7,6 +7,7 @@ import {
   collectBananas,
   createBananaCast,
   createCrossingCast,
+  createCyclistCast,
   CROSSING_OPTIONS,
   CROSSING_QUESTION,
   CROSSING_REACTIONS,
@@ -17,6 +18,7 @@ import {
 import {
   calmDown,
   createFamilyCast,
+  familyLife,
   cryingIdle,
   GOETTI_ANSWER,
   GOETTI_OPTIONS,
@@ -41,7 +43,7 @@ import {
 import { buildAmbience, type World } from './world';
 
 const ENDING_TITLES = {
-  yes: 'Willkommen in der Familie, Götti Alain! 💛',
+  yes: 'Wir freuen uns riesig, Götti Alain! 💛',
   maybe: 'Bedenkzeit bis morgen … 😎',
 } as const;
 
@@ -52,10 +54,12 @@ const ENDING_TITLES = {
  */
 export async function playAlleinZuhaus(story: Story, world: World): Promise<string> {
   const crossing = createCrossingCast(world);
+  const cyclists = createCyclistCast(world);
   const bananas = createBananaCast(world);
   const family = createFamilyCast(world);
   story.loop(buildAmbience(world));
   story.loop(bananaLife(bananas));
+  story.loop(familyLife(family));
 
   // ── At home ───────────────────────────────────────────────────────────────
   await story.play(apartmentMorning(world));
@@ -65,7 +69,7 @@ export async function playAlleinZuhaus(story: Story, world: World): Promise<stri
   await story.play(garageReveal(world));
 
   // ── On Zürcherstrasse ─────────────────────────────────────────────────────
-  await story.play(driveToCrossing(world, crossing));
+  await story.play(driveToCrossing(world, crossing, cyclists));
   const crossingChoice = await story.ask(CROSSING_QUESTION, CROSSING_OPTIONS, crossingIdle(crossing));
   await story.play(CROSSING_REACTIONS[crossingChoice](world, crossing));
   await story.play(driveToBananas(world, crossing, bananas));

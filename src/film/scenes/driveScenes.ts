@@ -1,4 +1,4 @@
-import { MathUtils, Vector3, type Group } from 'three';
+import { CatmullRomCurve3, MathUtils, Vector3, type Group } from 'three';
 import { createSparkle } from '../assets/b05';
 import {
   createBanana,
@@ -8,8 +8,17 @@ import {
   setHazardLights,
   type BananaTruck,
 } from '../assets/bananas';
-import { CITY } from '../assets/city';
-import { createPasserby, createRollator, walkCycle, type Passerby } from '../assets/people';
+import { CITY, sideStreetToWorld } from '../assets/city';
+import {
+  createCyclist,
+  createPasserby,
+  createRollator,
+  pedal,
+  turnHeadTowards,
+  walkCycle,
+  type Cyclist,
+  type Passerby,
+} from '../assets/people';
 import { createSnail, type Snail } from '../assets/streetFurniture';
 import { setOutlineThickness } from '../engine/build';
 import { cruiseProgress } from '../engine/route';
@@ -32,6 +41,138 @@ const IDLE_SECONDS = 3600;
 /** Characters face +z at yaw 0; -π/2 turns them towards -x (towards the oncoming B05). */
 const FACING_CAR = -Math.PI / 2;
 const FACING_ACROSS = 0;
+
+// ── Cyclists ────────────────────────────────────────────────────────────────
+
+export interface CyclistCast {
+  /** Two friends chatting in the lane right in front of the garage exit. */
+  chatters: [Cyclist, Cyclist];
+  /** E-bike rowdy: overtakes on the left, cuts in front of the B05, shaves past grandma. */
+  rider: Cyclist;
+}
+
+/**
+ * Side by side across Alain's lane a few metres past the garage turn, bikes pointing opposite
+ * ways — face to face.
+ */
+const CHATTER_SPOTS = [new Vector3(-53.2, 0, 5.3), new Vector3(-52.8, 0, 3.9)];
+/** Cyclists face -x in local space: yaw π turns them towards +x, 0 towards -x. */
+const CHATTER_YAWS = [Math.PI, 0];
+/** The B05 swings this far out (towards -z) to get round them … */
+const CHATTER_SWERVE_WIDTH = 2.6;
+/** … between these beat seconds of `driveToCrossing` (car passes them at ≈ 5 s). */
+const CHATTER_SWERVE_START = 3.2;
+const CHATTER_SWERVE_SECONDS = 3.8;
+
+export function createCyclistCast(world: World): CyclistCast {
+  const { scene } = world.stage;
+  const chatters: [Cyclist, Cyclist] = [
+    createCyclist(0x2fa4d9, { shirt: 0xffd84a, trousers: 0x2f4f7f, hair: 0x8a5a2c, hairStyle: 'ponytail', backpack: 0x6cc070 }),
+    createCyclist(0xe2453b, { shirt: 0x6cc070, trousers: 0x222228, hair: 0x1c1c1c, hairStyle: 'short', glasses: true }),
+  ];
+  chatters.forEach((chatter, index) => {
+    chatter.root.position.copy(CHATTER_SPOTS[index]);
+    chatter.root.rotation.y = CHATTER_YAWS[index];
+    pedal(chatter, 0);
+  });
+  const rider = createCyclist(0xf2c230, { shirt: 0xff4f8a, trousers: 0x222228, hair: 0xc98a3a, hairStyle: 'short', headband: 0x39c0e0 });
+  rider.root.visible = false;
+  [...chatters, rider].forEach((cyclist) => {
+    setOutlineThickness(cyclist.root, OUTLINE.character);
+    scene.add(cyclist.root);
+  });
+  return { chatters, rider };
+}
+
+/** Faces a cyclist along a ground direction (x/z). */
+function faceAlong(cyclist: Cyclist, direction: Vector3): void {
+  cyclist.root.rotation.y = Math.atan2(direction.z, -direction.x);
+}
+
+/** The rider sits turned a quarter towards the bike's front; heads turn relative to that. */
+function riderYaw(cyclist: Cyclist): number {
+  return cyclist.root.rotation.y - Math.PI / 2;
+}
+
+const otherHead = new Vector3();
+
+/**
+ * Two cyclists stand in the lane chatting and don't even look up; the B05 simply swings round
+ * them in an arc. Add right after the clip that drives the car — it nudges the car sideways.
+ */
+function chattersInTheWay(timeline: Timeline, world: World, cast: CyclistCast): void {
+  const { callouts, b05 } = world;
+  const [talker, listener] = cast.chatters;
+  // Looking at each other; the talker's hands fly, the listener nods — then laughs.
+  timeline.tween(0, 9, (_progress, elapsed) => {
+    turnHeadTowards(talker.rider.head, riderYaw(talker), listener.rider.head.getWorldPosition(otherHead), 1.3);
+    turnHeadTowards(listener.rider.head, riderYaw(listener), talker.rider.head.getWorldPosition(otherHead), 1.3);
+    talker.rider.arms[1].rotation.set(-1.5 - Math.abs(Math.sin(elapsed * 5)) * 0.8, 0, Math.sin(elapsed * 3) * 0.4);
+    talker.rider.arms[0].rotation.set(-1.3 - Math.abs(Math.sin(elapsed * 4 + 1)) * 0.6, 0, 0);
+    const isLaughing = elapsed > 5.4 && elapsed < 7;
+    listener.rider.head.rotation.x = isLaughing ? -0.25 : Math.sin(elapsed * 6) * 0.15;
+    listener.rider.head.rotation.z = isLaughing ? Math.sin(elapsed * 25) * 0.12 : 0;
+  }, ease.linear);
+  timeline.at(1.4, () => callouts.say('… und dänn hät sie gseit …', talker.rider.head, 1.8, 0.4));
+  timeline.at(3, () => callouts.say('Nei, würkli?! 😮', listener.rider.head, 1.4, 0.4));
+  timeline.at(4.3, () => callouts.say('Doch! Und dänn …', talker.rider.head, 1.4, 0.4));
+  timeline.at(5.5, () => callouts.say('Hahaha! 😂', listener.rider.head, 1.2, 0.4));
+
+  // Round them in an arc: out to the left, nose leading, and back into the lane.
+  timeline.tween(CHATTER_SWERVE_START, CHATTER_SWERVE_SECONDS, (progress) => {
+    b05.root.position.z -= CHATTER_SWERVE_WIDTH * Math.sin(progress * Math.PI);
+    b05.root.rotation.y += 0.22 * Math.sin(progress * Math.PI * 2);
+  }, ease.linear);
+}
+
+
+// Rowdy rider: from behind-left past the B05, cutting across its nose, then right past grandma.
+const ROWDY_APPEARS = 15.5;
+const ROWDY_RIDE_SECONDS = 4.5;
+const ROWDY_ROUTE = new CatmullRomCurve3([
+  new Vector3(6, 0, 1.4),
+  new Vector3(19, 0, 1.8),
+  new Vector3(25, 0, 5.4),
+  new Vector3(ZEBRA_X, 0, 5.9),
+  new Vector3(45, 0, 5.4),
+  new Vector3(70, 0, 5.2),
+]);
+/** Fraction of `ROWDY_ROUTE` at which he passes grandma on the zebra crossing (≈1.5 s in). */
+const ROWDY_AT_GRANDMA = 0.41;
+
+/** Must be added after the clip that drives the car; grandma reacts as he whizzes past. */
+function rowdyRider(timeline: Timeline, world: World, rider: Cyclist, crossing: CrossingCast): void {
+  const { callouts, thoughts, sounds } = world;
+  const direction = new Vector3();
+  const passGrandma = ROWDY_APPEARS + ROWDY_AT_GRANDMA * ROWDY_RIDE_SECONDS;
+  timeline.at(ROWDY_APPEARS, () => {
+    rider.root.visible = true;
+  });
+  timeline.tween(ROWDY_APPEARS, ROWDY_RIDE_SECONDS, (progress, elapsed) => {
+    rider.root.position.copy(ROWDY_ROUTE.getPointAt(progress));
+    faceAlong(rider, ROWDY_ROUTE.getTangentAt(progress, direction));
+    pedal(rider, elapsed * 12);
+  }, ease.linear);
+  timeline.at(ROWDY_APPEARS + 0.2, () => {
+    sounds.bikeBell();
+    callouts.show('DRING DRING!', rider.rider.head, 1.2, 0.4);
+  });
+  timeline.at(ROWDY_APPEARS + 0.7, () => {
+    sounds.whoosh();
+    callouts.say('Hey!! 😱', thoughts, 1.4, 0);
+  });
+  timeline.tween(passGrandma - 0.1, 0.5, (progress) => {
+    crossing.grandma.head.rotation.y = lerp(0, -1, Math.sin(progress * Math.PI));
+    crossing.grandma.root.position.y = Math.sin(progress * Math.PI) * 0.15;
+  }, ease.linear);
+  timeline.at(passGrandma, () => {
+    sounds.whoosh();
+    callouts.say('Saucheib!', crossing.grandma.head, 1.3);
+  });
+  timeline.at(ROWDY_APPEARS + ROWDY_RIDE_SECONDS, () => {
+    rider.root.visible = false;
+  });
+}
 
 // ── Crossing ────────────────────────────────────────────────────────────────
 
@@ -88,7 +229,7 @@ function shuffle(cast: CrossingCast, phase: number): void {
  * Out of the garage, right into Zürcherstrasse, past the Migros — and at the zebra crossing a
  * grandma with her rollator has been crossing since breakfast. One cut-away from the far sidewalk.
  */
-export function driveToCrossing(world: World, cast: CrossingCast): Timeline {
+export function driveToCrossing(world: World, cast: CrossingCast, cyclists: CyclistCast): Timeline {
   const timeline = new Timeline();
   const { callouts, thoughts, sounds, b05 } = world;
   const startDistance = world.odometer;
@@ -104,7 +245,9 @@ export function driveToCrossing(world: World, cast: CrossingCast): Timeline {
     shuffle(cast, elapsed * 3);
   }, ease.linear);
   timeline.at(12, () => callouts.say('Ah, die Migros. Bananen kaufen? Später …', thoughts, 3, 0));
-  timeline.at(16.5, () => callouts.say('Oh … da will jemand über die Strasse.', thoughts, 3, 0));
+  timeline.at(18, () => callouts.say('Oh … da will jemand über die Strasse.', thoughts, 2.2, 0));
+  rowdyRider(timeline, world, cyclists.rider, cast);
+  chattersInTheWay(timeline, world, cyclists);
 
   const carTarget = new Vector3();
   const sidewalkCamera = new Vector3(-14, 1.0, -7.4);
@@ -186,7 +329,8 @@ function hornReaction(world: World, cast: CrossingCast): Timeline {
     });
   }, ease.linear);
   turnGrandma(timeline, cast, 1.3, FACING_ACROSS, FACING_CAR);
-  timeline.at(2.4, () => callouts.say('Junger Mann! Ich bin zweiundneunzig!', grandma.head, 3));
+  timeline.at(2.2, () => callouts.say('Saucheib!', grandma.head, 1.2));
+  timeline.at(3.4, () => callouts.say('Junger Mann! Ich bin zweiundneunzig!', grandma.head, 2.6));
   timeline.tween(2.4, 2.6, (_progress, elapsed) => {
     grandma.arms[1].rotation.set(-2.8, 0, Math.sin(elapsed * 14) * 0.3);
   }, ease.linear);
@@ -231,6 +375,7 @@ function nudgeReaction(world: World, cast: CrossingCast): Timeline {
       callouts.show('BONK!', thoughts, 0.9, -0.5);
     });
   }
+  timeline.at(3.1, () => callouts.say('Saucheib!', grandma.head, 1.2));
   timeline.at(5.5, () => callouts.say('Also wirklich! Frechheit!', grandma.head, 2.5));
   turnGrandma(timeline, cast, 7, FACING_CAR, FACING_ACROSS);
   driverOnly(timeline, world, 8.2, (elapsed) => {
@@ -304,8 +449,9 @@ const TRUCK_POSITION = new Vector3(48, 0, -4.6);
 const DRIVER_SPOT = new Vector3(44, 0, 1.6);
 const DRIVER_YAW = FACING_CAR + 0.5;
 
+/** The whole banana scene lives round the corner, in the side street's street frame. */
 export function createBananaCast(world: World): BananaCast {
-  const { scene } = world.stage;
+  const scene = world.city.sideStreet;
   const truck = createBananaTruck();
   truck.root.position.copy(TRUCK_POSITION);
   setOutlineThickness(truck.root, OUTLINE.background);
@@ -339,9 +485,12 @@ export function bananaLife(cast: BananaCast): Timeline {
   return timeline;
 }
 
-const WIDE_BANANA_CAMERA = new Vector3(35.5, 3.4, 9.6);
-const WIDE_BANANA_TARGET = new Vector3(46, 0.6, 0);
+const WIDE_BANANA_CAMERA = sideStreetToWorld(new Vector3(35.5, 3.4, 9.6));
+const WIDE_BANANA_TARGET = sideStreetToWorld(new Vector3(46, 0.6, 0));
+const BANANA_DRIVE_START = 3;
+const BANANA_DRIVE_SECONDS = 9;
 
+/** Grandma reaches the sidewalk, Alain turns right into the side street — and there it lies. */
 export function driveToBananas(world: World, cast: CrossingCast, bananas: BananaCast): Timeline {
   const timeline = new Timeline();
   const { callouts, thoughts, sounds } = world;
@@ -352,20 +501,27 @@ export function driveToBananas(world: World, cast: CrossingCast, bananas: Banana
     placeGrandma(cast, lerp(grandmaZ, CITY.curbZ + 1.2, progress), FACING_ACROSS);
     shuffle(cast, elapsed * 4);
   }, ease.linear);
-  timeline.at(3, () => sounds.electricWhir(4));
-  timeline.tween(3, 6, (_progress, elapsed) => {
-    placeCar(world, lerp(startDistance, STOPS.bananas, cruiseProgress(elapsed, 6, 2, 2.5)));
+  timeline.at(BANANA_DRIVE_START, () => sounds.electricWhir(BANANA_DRIVE_SECONDS - 2));
+  timeline.tween(BANANA_DRIVE_START, BANANA_DRIVE_SECONDS, (_progress, elapsed) => {
+    placeCar(world, lerp(startDistance, STOPS.bananas, cruiseProgress(elapsed, BANANA_DRIVE_SECONDS, 2, 3)));
   }, ease.linear);
-  timeline.at(6.8, () => callouts.say('Was ist denn da passiert?!', thoughts, 2.5, 0));
-  timeline.at(9.2, () => callouts.show('BANANEN-ALARM!', bananas.truck.root, 2, 3.2));
+  const alarmTime = BANANA_DRIVE_START + BANANA_DRIVE_SECONDS;
+  timeline.at(alarmTime - 3.2, () => callouts.say('Was ist denn da passiert?!', thoughts, 2.5, 0));
+  timeline.at(alarmTime + 0.2, () => callouts.show('BANANEN-ALARM!', bananas.truck.root, 2, 3.2));
+  const sideTurnLength = STOPS.sideTurnEnd - STOPS.sideTurnStart;
   direct(timeline, world, [
     {
-      until: 9,
+      until: alarmTime,
       view: 'driver',
       fov: POV_FOV,
-      frame: (elapsed) => driverCamera(world, -0.4 * Math.max(0, 1 - elapsed / 3)),
+      frame: (elapsed) => {
+        // A last glance right at grandma, then a look into the right turn.
+        const grandmaLook = -0.4 * Math.max(0, 1 - elapsed / 3);
+        const turnLook = -0.45 * Math.sin(Math.PI * MathUtils.clamp((world.odometer - STOPS.sideTurnStart + 3) / (sideTurnLength + 3), 0, 1));
+        driverCamera(world, grandmaLook + turnLook);
+      },
     },
-    { until: 12.5, view: 'free', fov: 50, frame: () => aim(world, WIDE_BANANA_CAMERA, WIDE_BANANA_TARGET) },
+    { until: alarmTime + 3.5, view: 'free', fov: 50, frame: () => aim(world, WIDE_BANANA_CAMERA, WIDE_BANANA_TARGET) },
   ]);
   return timeline;
 }
@@ -393,7 +549,7 @@ function bananaSplitReaction(world: World, cast: BananaCast): Timeline {
   const sparkles = cast.roadBananas.slice(0, 4).map((banana) => {
     const sparkle = createSparkle();
     sparkle.position.copy(banana.position).setY(0.25);
-    world.stage.scene.add(sparkle);
+    world.city.sideStreet.add(sparkle);
     return sparkle;
   });
   timeline.at(0.5, () => alainSays(world, 'Daraus mache ich einen Riesen-Bananensplit! 🍨', 3.5));
@@ -436,7 +592,9 @@ function eatThemAllReaction(world: World, cast: BananaCast): Timeline {
     });
   }
   b05.root.updateMatrixWorld();
-  const window = new Vector3(-0.1, 1.2, 1.0).applyMatrix4(b05.root.matrixWorld);
+  world.city.sideStreet.updateMatrixWorld();
+  // The peel lives in the side street's frame, like the driver.
+  const window = world.city.sideStreet.worldToLocal(new Vector3(-0.1, 1.2, 1.0).applyMatrix4(b05.root.matrixWorld));
   // In the middle of the road, clear of the B05's lane — he'll be lying here for a while.
   const landing = new Vector3(43.4, 0.02, 2.2);
   timeline.at(3, () => {
@@ -552,12 +710,15 @@ export function collectBananas(world: World, cast: BananaCast): Timeline {
   timeline.at(FLYERS_START - 0.3, () => armful.forEach((held) => held.removeFromParent()));
 
   // ── Wide: bananas fly into the car ──────────────────────────────────────────
+  // Flight paths are worked out in the side street's frame, where the road bananas lie.
+  const { sideStreet } = world.city;
   b05.root.updateMatrixWorld();
-  const slots = cargo.bananas.map((banana) => banana.getWorldPosition(new Vector3()));
+  sideStreet.updateMatrixWorld();
+  const slots = cargo.bananas.map((banana) => sideStreet.worldToLocal(banana.getWorldPosition(new Vector3())));
   const flyers = Array.from({ length: FLYER_COUNT }, () => {
     const flyer = createBanana();
     flyer.visible = false;
-    stage.scene.add(flyer);
+    sideStreet.add(flyer);
     return flyer;
   });
   const alainThrowSpot = new Vector3(41.5, 1.2, 6.8);
@@ -611,9 +772,11 @@ export function collectBananas(world: World, cast: BananaCast): Timeline {
   });
   timeline.at(finished + 0.6, () => callouts.say('Merci vielmal! Gute Fahrt!', driver.head, 2.6));
 
-  const wideStart = new Vector3(33.5, 2.6, 9.4);
-  const wideEnd = new Vector3(34.5, 3.0, 8.4);
-  const wideTarget = new Vector3(39.5, 1.0, 3.2);
+  const wideStart = sideStreetToWorld(new Vector3(33.5, 2.6, 9.4));
+  const wideEnd = sideStreetToWorld(new Vector3(34.5, 3.0, 8.4));
+  const wideTarget = sideStreetToWorld(new Vector3(39.5, 1.0, 3.2));
+  const povPosition = sideStreetToWorld(POV_PICK_POSITION);
+  const povTarget = sideStreetToWorld(POV_PICK_TARGET);
   const widePosition = new Vector3();
   direct(timeline, world, [
     {
@@ -622,7 +785,7 @@ export function collectBananas(world: World, cast: BananaCast): Timeline {
       fov: POV_FOV,
       frame: (elapsed) => {
         const bob = Math.abs(Math.sin(elapsed * 2.5)) * 0.15;
-        aim(world, POV_PICK_POSITION.clone().setY(EYE_HEIGHT - bob), POV_PICK_TARGET);
+        aim(world, povPosition.clone().setY(EYE_HEIGHT - bob), povTarget);
       },
     },
     {

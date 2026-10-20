@@ -34,8 +34,10 @@ try {
   let titleTimeline: Timeline | undefined = buildTitleScene(stage);
   let story: Story | undefined;
   let sounds: SoundBoard | undefined;
+  let isPaused = false;
+  let isSeeking = false;
 
-  const play = () => {
+  const play = (presetAnswers: readonly number[] = []) => {
     try {
       titleTimeline = undefined;
       story?.stop();
@@ -44,7 +46,8 @@ try {
       callouts.clear();
       stage.reset();
       sounds = new SoundBoard();
-      const currentStory = new Story(choices.present);
+      sounds.setPaused(isPaused);
+      const currentStory = new Story(choices.present, presetAnswers);
       story = currentStory;
       const world = createWorld(stage, sounds, callouts);
       titleCard.hidden = true;
@@ -63,14 +66,77 @@ try {
     }
   };
 
+  const debugTime = requireElement('debug-time');
   stage.onFrame((deltaSeconds) => {
+    if (isPaused || isSeeking) {
+      return;
+    }
     titleTimeline?.advance(deltaSeconds);
     story?.advance(deltaSeconds);
     callouts.update(deltaSeconds);
+    debugTime.textContent = `${(story?.filmTime ?? 0).toFixed(1)} s`;
   });
 
-  requireElement('play').addEventListener('click', play);
-  requireElement('replay').addEventListener('click', play);
+  requireElement('play').addEventListener('click', () => play());
+  requireElement('replay').addEventListener('click', () => play());
+
+  // Debug controls: space pauses, "Springe zu" seeks in film time.
+  {
+    const debugForm = requireElement('debug') as HTMLFormElement;
+    const seekInput = requireElement('debug-seek') as HTMLInputElement;
+    debugForm.hidden = false;
+
+    const isPauseKey = (event: KeyboardEvent) => event.code === 'Space' && !(event.target instanceof HTMLInputElement);
+    window.addEventListener('keydown', (event) => {
+      if (!isPauseKey(event)) {
+        return;
+      }
+      event.preventDefault();
+      if (event.repeat) {
+        return;
+      }
+      isPaused = !isPaused;
+      sounds?.setPaused(isPaused);
+      debugTime.classList.toggle('film__debug-time--paused', isPaused);
+    });
+    // A focused button (Start, an answer, "Los") would otherwise "click" on space release.
+    window.addEventListener('keyup', (event) => {
+      if (isPauseKey(event)) {
+        event.preventDefault();
+      }
+    });
+
+    debugForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const targetSeconds = seekInput.valueAsNumber;
+      if (isSeeking || Number.isNaN(targetSeconds)) {
+        return;
+      }
+      // Timelines only run forward: seeking back replays from the start with the same answers.
+      if (!story || targetSeconds < story.filmTime) {
+        play(story?.answers ?? []);
+      }
+      const seekingStory = story;
+      const seekingSounds = sounds;
+      if (!seekingStory || !seekingSounds) {
+        return;
+      }
+      isSeeking = true;
+      seekingSounds.setMuted(true);
+      seekingStory
+        .fastForwardTo(targetSeconds, 1 / 30, (deltaSeconds) => callouts.update(deltaSeconds))
+        .then(
+          () => {
+            debugTime.textContent = `${seekingStory.filmTime.toFixed(1)} s`;
+          },
+          (error: unknown) => showError('Springen fehlgeschlagen', error),
+        )
+        .finally(() => {
+          seekingSounds.setMuted(false);
+          isSeeking = false;
+        });
+    });
+  }
 } catch (error) {
   showError('3D-Bühne konnte nicht initialisiert werden (WebGL?)', error);
 }
