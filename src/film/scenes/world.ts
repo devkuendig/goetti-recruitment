@@ -307,13 +307,8 @@ export function buildAmbience(world: World): Timeline {
       train.position.z = isRunning ? lerp(fromZ, toZ, trainProgress) : -400;
     });
 
-    // In the flat: second hand ticks, a fruit fly circles the empty bowl, the key twinkles.
+    // In the flat: second hand ticks, the key twinkles.
     home.clockHand.rotation.z = -Math.floor(elapsed) * ((Math.PI * 2) / 60);
-    home.fruitFly.position.set(
-      -60.55 + Math.cos(elapsed * 5) * 0.18,
-      HOME.flatFloorY + 1.15 + Math.sin(elapsed * 7) * 0.05,
-      12.6 + Math.sin(elapsed * 5) * 0.18,
-    );
     home.keySparkle.scale.setScalar(Math.max(0, Math.sin(elapsed * 1.7)) ** 12 * 0.12);
     home.flag.rotation.x = Math.sin(elapsed * 0.6) * 0.02;
 

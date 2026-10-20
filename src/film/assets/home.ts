@@ -69,7 +69,7 @@ export interface Home {
   garageLight: PointLight;
   /** Lid hinge of the laptop: `rotation.x = LAPTOP_CLOSED` closed, around -0.25 open. */
   laptopLid: Group;
-  fruitFly: Mesh;
+  bowlNote: Mesh;
   key: Group;
   keySparkle: Sprite;
   /** Swiss flag hanging off the facade; swing it with `rotation.x`. */
@@ -185,7 +185,7 @@ export function createHome(): Home {
     garageLamp: garage.lamp,
     garageLight: garage.light,
     laptopLid: flat.laptopLid,
-    fruitFly: flat.fruitFly,
+    bowlNote: flat.bowlNote,
     key: flat.key,
     keySparkle: flat.keySparkle,
     flag,
@@ -682,7 +682,7 @@ function createModelGlider(): Group {
 function furnishFlat(): {
   root: Group;
   laptopLid: Group;
-  fruitFly: Mesh;
+  bowlNote: Mesh;
   key: Group;
   keySparkle: Sprite;
   clockHand: Group;
@@ -751,7 +751,7 @@ function furnishFlat(): {
   root.add(laptopBase, laptopLid);
 
   // Generous kitchen counter along the right wall, with the barista machine and a shelf of cups;
-  // the fruit bowl holds a single peel.
+  // the fruit bowl holds a single peel and a guilty note.
   const counter = box(0.6, 0.9, 4.0, toon(0xf4f4f4));
   counter.position.set(-60.55, floorY + 0.45, 13);
   const worktop = box(0.64, 0.04, 4.04, toon(0xb07a4a));
@@ -762,9 +762,16 @@ function furnishFlat(): {
   bowl.position.set(HOME_SPOTS.bowl.x, floorY + 0.98, HOME_SPOTS.bowl.z);
   const peel = createBananaPeel();
   peel.position.set(HOME_SPOTS.bowl.x, floorY + 1.0, HOME_SPOTS.bowl.z);
-  const fruitFly = sphere(0.012, toon(0x1a1a22));
-  fruitFly.position.copy(HOME_SPOTS.bowl);
-  root.add(bowl, peel, fruitFly);
+  const bowlNote = createLabel('Selber gegessen 😋', 0.18, 0.1, {
+    width: 360,
+    height: 200,
+    font: 'bold 44px "Comic Sans MS", "Comic Neue", sans-serif',
+    color: '#1a1a22',
+    background: '#fff6a0',
+  });
+  bowlNote.position.set(HOME_SPOTS.bowl.x - 0.06, floorY + 1.08, HOME_SPOTS.bowl.z + 0.04);
+  bowlNote.rotation.set(0, -Math.PI / 2, -0.2);
+  root.add(bowl, peel, bowlNote);
   const baking = createBakingCorner(floorY);
   root.add(baking.root);
 
@@ -844,5 +851,5 @@ function furnishFlat(): {
   const light = new PointLight(0xfff0d8, 3.5, 10, 2);
   light.position.set(-63, 5.2, 14);
   root.add(ceilingLamp, light);
-  return { root, laptopLid, fruitFly, key, keySparkle, clockHand, ovenLamp: baking.ovenLamp, modelGlider };
+  return { root, laptopLid, bowlNote, key, keySparkle, clockHand, ovenLamp: baking.ovenLamp, modelGlider };
 }

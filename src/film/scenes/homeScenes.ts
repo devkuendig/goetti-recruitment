@@ -188,7 +188,7 @@ function workReaction(world: World): Timeline {
 
 /**
  * Banana bread? Recipe open, tin ready, oven preheating … and the fruit bowl holds a single peel
- * and a fruit fly.
+ * and a note in his own hand: "Selber gegessen 😋".
  */
 function bananaBreadReaction(world: World): Timeline {
   const timeline = new Timeline();
@@ -211,8 +211,8 @@ function bananaBreadReaction(world: World): Timeline {
     setOven(true);
     callouts.show('OFEN 180° 🔥', ovenAnchor, 1.6, 0.3);
   });
-  timeline.at(6, () => callouts.show('LEER!', home.fruitFly, 1.4, 0.15));
-  timeline.at(6.8, () => callouts.say('Keine einzige Banane im Haus?!', thoughts, 3, 0));
+  timeline.at(6, () => callouts.show('LEER!', home.bowlNote, 1.4, 0.15));
+  timeline.at(6.8, () => callouts.say('Ach ja … die hab ich ja selber gegessen. 😅', thoughts, 3, 0));
   timeline.at(9.3, () => {
     sounds.click();
     setOven(false);

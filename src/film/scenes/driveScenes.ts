@@ -528,7 +528,7 @@ export function driveToBananas(world: World, cast: CrossingCast, bananas: Banana
 
 export const BANANA_QUESTION = 'Ein Lastwagen voller Bananen ist umgekippt! Was willst du machen?';
 export const BANANA_OPTIONS: readonly ChoiceOption[] = [
-  { icon: '🐒', label: 'Bananen einsammeln für einen Affen-Zoo im Wohnzimmer' },
+  { icon: '🪂', label: 'Bananen einsammeln als Gleitschirm-Proviant für ein Jahr' },
   { icon: '💛', label: 'Bananen einsammeln für Moana' },
   { icon: '🍞', label: 'Bananen einsammeln für Bananenbrot' },
 ];
@@ -544,7 +544,7 @@ function alainSays(world: World, text: string, durationSeconds: number): void {
   world.callouts.say(text, world.b05.root, durationSeconds, 2.1);
 }
 
-function monkeyZooReaction(world: World, cast: BananaCast): Timeline {
+function paraglidingSnackReaction(world: World, cast: BananaCast): Timeline {
   const timeline = new Timeline();
   const sparkles = cast.roadBananas.slice(0, 4).map((banana) => {
     const sparkle = createSparkle();
@@ -552,7 +552,7 @@ function monkeyZooReaction(world: World, cast: BananaCast): Timeline {
     world.city.sideStreet.add(sparkle);
     return sparkle;
   });
-  timeline.at(0.5, () => alainSays(world, 'Damit eröffne ich einen Affen-Zoo im Wohnzimmer! 🐒', 3.5));
+  timeline.at(0.5, () => alainSays(world, 'Gleitschirm-Proviant für ein ganzes Jahr! 🪂', 3.5));
   timeline.at(2.4, () => world.sounds.ping(2600));
   timeline.tween(2.4, 1, (progress) => {
     sparkles.forEach((sparkle, index) => {
@@ -645,7 +645,7 @@ function bananaBreadReaction(world: World, cast: BananaCast): Timeline {
 }
 
 export const BANANA_REACTIONS: readonly ((world: World, cast: BananaCast) => Timeline)[] = [
-  monkeyZooReaction,
+  paraglidingSnackReaction,
   forMoanaReaction,
   bananaBreadReaction,
 ];
