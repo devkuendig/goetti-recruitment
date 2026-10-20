@@ -1,8 +1,8 @@
-# Project: PlanBee
+# Project: goetti-recruitment
 
 ## Product overview
 
-- [product overview](PlanBee.md)
+- [product overview](goetti-recruitment.md)
 
 ## Role
 

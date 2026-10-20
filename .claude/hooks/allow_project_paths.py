@@ -21,7 +21,7 @@ import re
 import shlex
 import sys
 
-ALLOWED_ROOTS = ("/workspace/planbee", "/home/lukas/.gradle")
+ALLOWED_ROOTS = ("/workspace/goetti-recruitment", "/home/lukas/.gradle")
 SEPARATOR_CHARS = set(";|&()\n")
 REDIRECT_CHARS = set("<>&")
 SED_OPTIONS_WITH_VALUE = {"-e", "--expression", "-f", "--file", "-l", "--line-length"}

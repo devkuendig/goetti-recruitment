@@ -7,7 +7,7 @@
 set -uo pipefail
 
 # Always run from project root so Gradle and relative paths resolve correctly.
-cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /workspace/planbee)"
+cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /workspace/goetti-recruitment)"
 
 MODE="${1:-stop}"
 
