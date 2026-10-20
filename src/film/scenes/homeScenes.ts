@@ -252,7 +252,7 @@ export function grabKey(world: World): Timeline {
   timeline.tween(1.5, 0.6, (progress) => {
     home.keySparkle.scale.setScalar(Math.sin(progress * Math.PI) * 0.35);
   }, ease.linear);
-  timeline.at(2, () => callouts.say('Dänn halt e Spritztour mit em B05! 😎', thoughts, 3, 0));
+  timeline.at(2, () => callouts.say('Dänn halt e Sprütztour mit em B05! 😎', thoughts, 3, 0));
   for (const stepTime of [3, 3.5, 4]) {
     timeline.at(stepTime, () => sounds.footstep());
   }
@@ -330,7 +330,7 @@ export function garageReveal(world: World): Timeline {
   }, ease.linear);
   timeline.at(5.3, () => {
     sounds.ping(2400);
-    callouts.showBanner('Leapmotor B05', 'äusserst angesagt', 3);
+    callouts.showBanner('Leapmotor B05', 'üssert ahgseit!', 3);
   });
   timeline.tween(5.3, 1.2, (progress) => {
     b05.sparkles.forEach((sparkle, index) => {
