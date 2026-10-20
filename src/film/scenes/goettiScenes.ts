@@ -33,6 +33,9 @@ const PRAM_START_X = 80;
 const PRAM_STOP_X = 65.8;
 const FAMILY_WALK_START = 2;
 const FAMILY_WALK_SECONDS = 13.5;
+/** Alain greets the family and they wave back (seconds into `parkAndMeetFamily`). */
+const GREETING_START = 14.5;
+const GREETING_SECONDS = 2.4;
 const PRAM_WHEEL_RADIUS = 0.15;
 const ALAIN_SPOT = new Vector3(63.4, EYE_HEIGHT, 7.4);
 const ALAIN_SPOT_WORLD = sideStreetToWorld(ALAIN_SPOT);
@@ -262,6 +265,18 @@ function placeFamily(cast: FamilyCast, pramX: number, walked: number): void {
   });
 }
 
+const KID_MOUTH_CLOSED = new Vector3(1.4, 0.4, 0.6);
+const KID_MOUTH_OPEN = new Vector3(1.2, 1.3, 0.6);
+/** Sparkle size from which the mouth is fully open. */
+const SPARKLE_MOUTH_OPEN = 0.15;
+
+/** Sets the toddler's eye sparkles; while they shine, the mouth opens in wonder. */
+function twinkleEyes(cast: FamilyCast, scales: readonly [number, number]): void {
+  cast.eyeSparkles.forEach((sparkle, index) => sparkle.scale.setScalar(scales[index]));
+  const openness = MathUtils.clamp(Math.max(...scales) / SPARKLE_MOUTH_OPEN, 0, 1);
+  cast.kid.whistleMouth.scale.lerpVectors(KID_MOUTH_CLOSED, KID_MOUTH_OPEN, openness);
+}
+
 function everyoneLooksAt(cast: FamilyCast, worldTarget: Vector3): void {
   [cast.papa, cast.mama, cast.moana].forEach((person) => turnHeadTowards(person.head, FAMILY_WORLD_YAW, worldTarget, 1.2));
 }
@@ -395,7 +410,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   timeline.tween(13.5, 0.3, (progress) => {
     hands.keyHand.rotation.set(0.3, -0.25, 0.1 * progress);
   });
-  timeline.at(13.8, () => callouts.say('Puh … entkommen.', thoughts, 2, 0));
+  timeline.at(13.2, () => callouts.say('Puh … entkommen.', thoughts, 1.2, 0));
 
   // ── The family strolls along the sidewalk; Moana munches ────────────────────
   timeline.tween(FAMILY_WALK_START, FAMILY_WALK_SECONDS, (_progress, elapsed) => {
@@ -412,6 +427,27 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   }, ease.linear);
   moanaBite(timeline, world, cast, 15);
   moanaBite(timeline, world, cast, 17.2);
+
+  // ── Alain spots them: "Hallo Familie Kündig!" — and everyone waves ─────────
+  // After the walk tween, so the waving arms win over the walk cycle.
+  timeline.at(GREETING_START, () => callouts.say('Hallo Familie Kündig! 👋', thoughts, 2.4, 0));
+  timeline.tween(GREETING_START, GREETING_SECONDS, (progress, elapsed) => {
+    const raised = Math.sin(progress * Math.PI);
+    hands.keyHand.position.y = lerp(-0.34, -0.1, raised);
+    hands.keyHand.rotation.set(0.3, -0.25, 0.1 + Math.sin(elapsed * 12) * 0.5 * raised);
+  }, ease.linear);
+  timeline.at(GREETING_START + 0.8, () => callouts.say('Hoi Alain!', cast.mama.head, 1.8, 0.45));
+  timeline.tween(GREETING_START + 0.5, GREETING_SECONDS, (progress, elapsed) => {
+    const raised = Math.sin(progress * Math.PI);
+    const wiggle = Math.sin(elapsed * 10) * 0.35 * raised;
+    cast.papa.arms[1].rotation.set(lerp(-1.2, -2.7, raised), 0, wiggle);
+    cast.mama.arms[1].rotation.set(lerp(0, -2.7, raised), 0, wiggle);
+    cast.moana.arms[0].rotation.z = -0.3 + wiggle * 1.5;
+    everyoneLooksAt(cast, ALAIN_SPOT_WORLD);
+    [cast.papa, cast.mama, cast.moana].forEach((person) => {
+      person.head.rotation.y *= raised;
+    });
+  }, ease.linear);
 
   // ── The toddler giggles at the flailing stranger — and the pacifier drops ───
   timeline.tween(19.3, 0.6, (progress) => {
@@ -511,9 +547,8 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     timeline.at(pingTime, () => sounds.ping(3400));
   }
   timeline.tween(reveal + 1.3, 0.8, (progress) => {
-    cast.eyeSparkles.forEach((sparkle, index) => {
-      sparkle.scale.setScalar(Math.max(0, Math.sin((progress * 1.4 - index * 0.2) * Math.PI)) * 0.3);
-    });
+    const sparkle = (index: number) => Math.max(0, Math.sin((progress * 1.4 - index * 0.2) * Math.PI)) * 0.3;
+    twinkleEyes(cast, [sparkle(0), sparkle(1)]);
   }, ease.linear);
   timeline.at(reveal + 1.8, () => callouts.say('Reflexe wie ein Götti!', kid.head, 2.2, 0.45));
   timeline.tween(reveal + 3.9, 0.4, (progress) => {
@@ -679,9 +714,8 @@ export function goettiIdle(world: World, cast: FamilyCast): Timeline {
   const { kid } = cast;
   timeline.tween(0, IDLE_SECONDS, (_progress, elapsed) => {
     kid.root.position.y = Math.abs(Math.sin(elapsed * 4)) * 0.05;
-    cast.eyeSparkles.forEach((sparkle, index) => {
-      sparkle.scale.setScalar(Math.max(0, Math.sin(elapsed * 2.5 + index * 1.4)) ** 10 * 0.25);
-    });
+    const sparkle = (index: number) => Math.max(0, Math.sin(elapsed * 2.5 + index * 1.4)) ** 10 * 0.25;
+    twinkleEyes(cast, [sparkle(0), sparkle(1)]);
     everyoneLooksAt(cast, ALAIN_SPOT_WORLD);
     turnHeadTowards(kid.head, FAMILY_WORLD_YAW, ALAIN_SPOT_WORLD, 1.0);
     hopForJoy(cast.moana, elapsed);
@@ -848,7 +882,7 @@ export function calmDown(world: World, cast: FamilyCast): Timeline {
     tears.forEach((tear) => {
       tear.visible = false;
     });
-    kid.whistleMouth.scale.set(1.4, 0.4, 0.6);
+    kid.whistleMouth.scale.copy(KID_MOUTH_CLOSED);
     world.callouts.show('SCHNIEF.', kid.head, 1.4, 0.5);
   });
   timeline.tween(0.4, 0.5, (progress) => {
@@ -858,9 +892,8 @@ export function calmDown(world: World, cast: FamilyCast): Timeline {
   });
   timeline.at(1.4, () => world.sounds.ping(3400));
   timeline.tween(1.4, 0.6, (progress) => {
-    cast.eyeSparkles.forEach((sparkle) => {
-      sparkle.scale.setScalar(Math.sin(progress * Math.PI) * 0.3);
-    });
+    const sparkle = Math.sin(progress * Math.PI) * 0.3;
+    twinkleEyes(cast, [sparkle, sparkle]);
   }, ease.linear);
   holdFamilyShot(timeline, world, cast, 2.8);
   return timeline;

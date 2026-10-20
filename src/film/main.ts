@@ -1,3 +1,4 @@
+import { PerspectiveCamera, Scene } from 'three';
 import { SoundBoard } from './engine/audio';
 import { Callouts } from './engine/callouts';
 import { ChoicePanel } from './engine/choices';
@@ -36,6 +37,25 @@ try {
   let sounds: SoundBoard | undefined;
   let isPaused = false;
   let isSeeking = false;
+  const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  const seekInput = requireElement('debug-seek') as HTMLInputElement;
+  /** Answers the slider's length was measured for; later questions were assumed at their first option. */
+  let measuredAnswers: readonly number[] = [];
+  const isMeasuredPath = (answers: readonly number[]) =>
+    answers.length <= measuredAnswers.length && answers.every((answer, index) => answer === measuredAnswers[index]);
+  /** Sets the slider's range to the film's played length (no question time) along `answers`. */
+  const measureFilmLength = (answers: readonly number[], filmSounds: SoundBoard) => {
+    measuredAnswers = [...answers];
+    // A throwaway world on a bare scene: nothing of it is ever rendered or played.
+    const dryStage = { scene: new Scene(), camera: new PerspectiveCamera() };
+    Story.measure(answers, (dryStory) => playAlleinZuhaus(dryStory, createWorld(dryStage, filmSounds, callouts))).then(
+      (seconds) => {
+        seekInput.max = seconds.toFixed(1);
+      },
+      (error: unknown) => showError('Filmlänge konnte nicht gemessen werden', error),
+    );
+  };
 
   const play = (presetAnswers: readonly number[] = []) => {
     try {
@@ -50,6 +70,9 @@ try {
       const currentStory = new Story(choices.present, presetAnswers);
       story = currentStory;
       const world = createWorld(stage, sounds, callouts);
+      if (isDesktop) {
+        measureFilmLength(presetAnswers, sounds);
+      }
       titleCard.hidden = true;
       endCard.hidden = true;
       playAlleinZuhaus(currentStory, world).then(
@@ -67,14 +90,11 @@ try {
   };
 
   const debugTime = requireElement('debug-time');
-  const seekInput = requireElement('debug-seek') as HTMLInputElement;
   const seekValue = requireElement('debug-seek-value');
   let isScrubbing = false;
   const showDebugTime = (filmTime: number) => {
     debugTime.textContent = `${filmTime.toFixed(1)} s`;
     if (!isScrubbing) {
-      // Grow the slider if the film runs longer than its range.
-      seekInput.max = String(Math.max(Number(seekInput.max),Math.ceil(filmTime)));
       seekInput.value = filmTime.toFixed(1);
       seekValue.textContent = `${Math.round(filmTime)} s`;
     }
@@ -88,13 +108,16 @@ try {
     story?.advance(deltaSeconds);
     callouts.update(deltaSeconds);
     showDebugTime(story?.filmTime ?? 0);
+    // The viewer took another branch than measured: the film's length may have changed.
+    if (isDesktop && story && sounds && !isMeasuredPath(story.answers)) {
+      measureFilmLength(story.answers, sounds);
+    }
   });
 
   requireElement('play').addEventListener('click', () => play());
   requireElement('replay').addEventListener('click', () => play());
 
   // Debug controls (desktop only): space pauses, the slider seeks in film time.
-  const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (isDesktop) {
     const debugForm = requireElement('debug') as HTMLFormElement;
     debugForm.hidden = false;

@@ -64,8 +64,11 @@ export const STOPS = {
 
 export type View = 'driver' | 'walker' | 'free';
 
+/** All the film's scenes need of the stage — also met by a bare scene + camera for a dry run. */
+export type StageView = Pick<Stage, 'scene' | 'camera'>;
+
 export interface World {
-  stage: Stage;
+  stage: StageView;
   sounds: SoundBoard;
   callouts: Callouts;
   city: City;
@@ -80,7 +83,7 @@ export interface World {
   odometer: number;
 }
 
-export function createWorld(stage: Stage, sounds: SoundBoard, callouts: Callouts): World {
+export function createWorld(stage: StageView,sounds: SoundBoard, callouts: Callouts): World {
   const { scene, camera } = stage;
   const city = createCity(scene);
   city.root.add(furnishStreet(), createZebraCrossing(ZEBRA_X));

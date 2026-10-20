@@ -34,6 +34,20 @@ export class Story {
   private asking = false;
   /** While fast-forwarding, every question is answered with its first option. */
   private answeringFirstOption = false;
+  /** Dry run: clips count their full length at once and nothing plays. */
+  private measuring = false;
+
+  /**
+   * Length of the film in played seconds (time on open questions excluded) when the questions
+   * are answered with `answers` and every later one with its first option. Runs `script` dry.
+   */
+  static async measure(answers: readonly number[], script: (story: Story) => Promise<unknown>): Promise<number> {
+    const story = new Story(() => Promise.resolve(0), answers);
+    story.measuring = true;
+    story.answeringFirstOption = true;
+    await script(story);
+    return story.playedSeconds;
+  }
 
   /** `presetAnswers` answer the first questions without asking — used to replay up to a seek point. */
   constructor(private readonly presentChoice: PresentChoice, presetAnswers: readonly number[] = []) {
@@ -61,6 +75,10 @@ export class Story {
   }
 
   play(timeline: Timeline): Promise<void> {
+    if (this.measuring) {
+      this.playedSeconds += timeline.duration;
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       this.running = { timeline, duration: timeline.duration, finish: resolve, isIdle: false };
     });

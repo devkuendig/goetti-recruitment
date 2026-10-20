@@ -139,6 +139,18 @@ describe('Story', () => {
     expect(presented).toBe(0);
   });
 
+  it('whenMeasuring_thenSumsClipsAlongAnswersThenFirstOptions', async () => {
+    const script = async (story: Story) => {
+      await story.play(new Timeline().tween(0, 2, () => undefined));
+      const first = await story.ask('Erste?', [], new Timeline());
+      await story.play(new Timeline().tween(0, first === 1 ? 10 : 3, () => undefined));
+      const second = await story.ask('Zweite?', []);
+      await story.play(new Timeline().tween(0, second === 0 ? 4 : 20, () => undefined));
+    };
+
+    expect(await Story.measure([1], script)).toBe(16);
+  });
+
   it('whenQuestionAlreadyOpen_thenFastForwardDoesNotAnswerIt', async () => {
     const story = new Story(() => new Promise<number>(() => undefined));
     void story.ask('Was tun?', [], new Timeline());
