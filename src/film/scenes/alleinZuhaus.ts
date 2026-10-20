@@ -43,12 +43,12 @@ import {
 import { buildAmbience, type World } from './world';
 
 const ENDING_TITLES = {
-  yes: 'Wir freuen uns riesig, Götti Alain! 💛',
-  maybe: 'Bedenkzeit bis morgen … 😎',
+  yes: 'Mir fröied eus riesig, Götti Alain! 💛',
+  maybe: 'Bedänkziit bis morn … 😎',
 } as const;
 
 /**
- * "Alain alain Zuhaus" — the whole interactive film as one script.
+ * "Alain alain dihei" — the whole interactive film as one script.
  * Every cast is built up front so no beat stutters while geometry is created.
  * Resolves with the title of the end card the viewer earned.
  */

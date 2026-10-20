@@ -53,7 +53,7 @@ try {
       (seconds) => {
         seekInput.max = seconds.toFixed(1);
       },
-      (error: unknown) => showError('Filmlänge konnte nicht gemessen werden', error),
+      (error: unknown) => showError('D Filmlängi het nöd chöne gmässe wärde', error),
     );
   };
 
@@ -82,10 +82,10 @@ try {
             endCard.hidden = false;
           }
         },
-        (error: unknown) => showError('Film ist abgebrochen', error),
+        (error: unknown) => showError('De Film isch abbroche', error),
       );
     } catch (error) {
-      showError('Film konnte nicht gestartet werden', error);
+      showError('De Film het nöd chöne gstartet wärde', error);
     }
   };
 
@@ -171,7 +171,7 @@ try {
         .fastForwardTo(targetSeconds, 1 / 30, (deltaSeconds) => callouts.update(deltaSeconds))
         .then(
           () => showDebugTime(seekingStory.filmTime),
-          (error: unknown) => showError('Springen fehlgeschlagen', error),
+          (error: unknown) => showError('Springe isch fählgschlage', error),
         )
         .finally(() => {
           seekingSounds.setMuted(false);
@@ -180,5 +180,5 @@ try {
     });
   }
 } catch (error) {
-  showError('3D-Bühne konnte nicht initialisiert werden (WebGL?)', error);
+  showError('D 3D-Bühni het nöd chöne initialisiert wärde (WebGL?)', error);
 }

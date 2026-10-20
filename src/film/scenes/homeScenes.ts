@@ -23,11 +23,11 @@ const FLAT_EYE = new Vector3(-63.4, HOME.flatFloorY + EYE_HEIGHT, 16.4);
 const ROOM_CENTER = new Vector3(-63, HOME.flatFloorY + 1.2, 12);
 const IDLE_SECONDS = 3600;
 
-export const ACTIVITY_QUESTION = 'Was möchtest du heute machen?';
+export const ACTIVITY_QUESTION = 'Was wotsch hüt mache?';
 export const ACTIVITY_OPTIONS: readonly ChoiceOption[] = [
-  { icon: '🪂', label: 'Gleitschirm fliegen' },
-  { icon: '💻', label: 'Arbeiten' },
-  { icon: '🍌', label: 'Bananenbrot backen' },
+  { icon: '🪂', label: 'Gleitschirmle' },
+  { icon: '💻', label: 'Schaffe' },
+  { icon: '🍌', label: 'Bananebrot bache' },
 ];
 
 /** Looks around the flat from a fixed standing spot, with a slight breathing sway. */
@@ -51,9 +51,9 @@ export function apartmentMorning(world: World): Timeline {
   const timeline = new Timeline();
   const { callouts, thoughts } = world;
   const windowLow = HOME_SPOTS.window.clone().setY(HOME_SPOTS.window.y - 0.9);
-  timeline.at(0.6, () => callouts.showBanner('Alain alain Zuhaus', 'Samstagmorgen, Winterthur', 4.5));
+  timeline.at(0.6, () => callouts.showBanner('Alain alain dihei', 'Samschtigmorge, Winti', 4.5));
   timeline.at(2, () => callouts.show('GÄHN!', thoughts, 1.6, 0));
-  timeline.at(10, () => callouts.say('Hmm … was mache ich heute?', thoughts, 3.5, 0));
+  timeline.at(10, () => callouts.say('Hmm … was mach i hüt?', thoughts, 3.5, 0));
   direct(timeline, world, [
     flatShot(
       world,
@@ -100,17 +100,17 @@ function paraglidingReaction(world: World): Timeline {
   const glider = home.modelGlider;
   const hookPosition = glider.position.clone();
   const gliderLook = hookPosition.clone().setY(hookPosition.y - 0.5);
-  timeline.at(1, () => callouts.say('Gleitschirmfliegen! 🪂', thoughts, 2.2, 0));
+  timeline.at(1, () => callouts.say('Gleitschirmle! 🪂', thoughts, 2.2, 0));
   // One hopeful twitch of the flag … then nothing.
   timeline.tween(3.8, 1.2, (progress) => {
     home.flag.rotation.x = Math.sin(progress * Math.PI) * 0.15;
   }, ease.linear);
-  timeline.at(4.6, () => callouts.say('Hmm … kein Lüftchen?', thoughts, 1.6, 0));
-  timeline.at(6.3, () => callouts.say('Testflug! 🌬️', thoughts, 1.2, 0));
+  timeline.at(4.6, () => callouts.say('Hmm … kes Lüftli?', thoughts, 1.6, 0));
+  timeline.at(6.3, () => callouts.say('Teschtflug! 🌬️', thoughts, 1.2, 0));
   // A mighty puff: the model swings wildly …
   timeline.at(7.2, () => {
     sounds.whoosh();
-    callouts.show('PUUUSTE!', thoughts, 1, -0.2);
+    callouts.show('PUUUSCHTE!', thoughts, 1, -0.2);
   });
   timeline.tween(7.2, 0.7, (progress) => {
     glider.rotation.set(Math.sin(progress * Math.PI * 3) * 0.6, 0, Math.sin(progress * Math.PI * 2) * 0.4);
@@ -129,7 +129,7 @@ function paraglidingReaction(world: World): Timeline {
     sounds.bonk();
     callouts.show('PLONK!', glider, 1.2, 0.3);
   });
-  timeline.at(9.6, () => callouts.say('… Absturzgefahr. Heute lieber nicht. 😅', thoughts, 2.6, 0));
+  timeline.at(9.6, () => callouts.say('… Abschturzgfahr. Hüt lieber nöd. 😅', thoughts, 2.6, 0));
   direct(timeline, world, [
     flatShot(
       world,
@@ -163,8 +163,8 @@ function workReaction(world: World): Timeline {
   timeline.tween(1.4, 0.6, (progress) => {
     home.laptopLid.rotation.x = lerp(LAPTOP_CLOSED, -0.25, progress);
   }, ease.out);
-  timeline.at(2.5, () => callouts.say('Update 1 von 487?! 😩', thoughts, 2.5, 0));
-  timeline.at(5.2, () => callouts.say('Heute nicht.', thoughts, 1.6, 0));
+  timeline.at(2.5, () => callouts.say('Update 1 vo 487?! 😩', thoughts, 2.5, 0));
+  timeline.at(5.2, () => callouts.say('Hüt nöd.', thoughts, 1.6, 0));
   timeline.tween(6, 0.25, (progress) => {
     home.laptopLid.rotation.x = lerp(-0.25, LAPTOP_CLOSED, progress);
   }, ease.in);
@@ -188,7 +188,7 @@ function workReaction(world: World): Timeline {
 
 /**
  * Banana bread? Recipe open, tin ready, oven preheating … and the fruit bowl holds a single peel
- * and a note in his own hand: "Selber gegessen 😋".
+ * and a note in his own hand: "Sälber gässe 😋".
  */
 function bananaBreadReaction(world: World): Timeline {
   const timeline = new Timeline();
@@ -204,15 +204,15 @@ function bananaBreadReaction(world: World): Timeline {
     world.stage.scene.add(anchor);
     return anchor;
   });
-  timeline.at(1, () => callouts.say('Bananenbrot backen! 🍌', thoughts, 2, 0));
+  timeline.at(1, () => callouts.say('Bananebrot bache! 🍌', thoughts, 2, 0));
   timeline.at(2.4, () => callouts.show('REZEPT ✔', recipeAnchor, 1.2, 0.2));
   timeline.at(3.6, () => {
     sounds.click();
     setOven(true);
     callouts.show('OFEN 180° 🔥', ovenAnchor, 1.6, 0.3);
   });
-  timeline.at(6, () => callouts.show('LEER!', home.bowlNote, 1.4, 0.15));
-  timeline.at(6.8, () => callouts.say('Ach ja … die hab ich ja selber gegessen. 😅', thoughts, 3, 0));
+  timeline.at(6, () => callouts.show('LÄÄR!', home.bowlNote, 1.4, 0.15));
+  timeline.at(6.8, () => callouts.say('Ah ja … die han i ja sälber gässe. 😅', thoughts, 3, 0));
   timeline.at(9.3, () => {
     sounds.click();
     setOven(false);
@@ -252,7 +252,7 @@ export function grabKey(world: World): Timeline {
   timeline.tween(1.5, 0.6, (progress) => {
     home.keySparkle.scale.setScalar(Math.sin(progress * Math.PI) * 0.35);
   }, ease.linear);
-  timeline.at(2, () => callouts.say('Dann halt eine Spritztour mit dem B05! 😎', thoughts, 3, 0));
+  timeline.at(2, () => callouts.say('Dänn halt e Spritztour mit em B05! 😎', thoughts, 3, 0));
   for (const stepTime of [3, 3.5, 4]) {
     timeline.at(stepTime, () => sounds.footstep());
   }

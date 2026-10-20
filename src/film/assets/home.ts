@@ -739,7 +739,7 @@ function furnishFlat(): {
   laptopLid.rotation.x = LAPTOP_CLOSED;
   const lidPanel = box(0.34, 0.24, 0.012, toon(0xb5b8bd));
   lidPanel.position.y = 0.12;
-  const screen = createLabel('Update 1 von 487 …', 0.31, 0.2, {
+  const screen = createLabel('Update 1 vo 487 …', 0.31, 0.2, {
     width: 512,
     height: 330,
     font: 'bold 40px "Helvetica Neue", Arial, sans-serif',
@@ -762,7 +762,7 @@ function furnishFlat(): {
   bowl.position.set(HOME_SPOTS.bowl.x, floorY + 0.98, HOME_SPOTS.bowl.z);
   const peel = createBananaPeel();
   peel.position.set(HOME_SPOTS.bowl.x, floorY + 1.0, HOME_SPOTS.bowl.z);
-  const bowlNote = createLabel('Selber gegessen 😋', 0.18, 0.1, {
+  const bowlNote = createLabel('Sälber gässe 😋', 0.18, 0.1, {
     width: 360,
     height: 200,
     font: 'bold 44px "Comic Sans MS", "Comic Neue", sans-serif',

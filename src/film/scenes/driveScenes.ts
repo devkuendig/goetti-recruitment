@@ -244,8 +244,8 @@ export function driveToCrossing(world: World, cast: CrossingCast, cyclists: Cycl
     placeGrandma(cast, z, FACING_ACROSS);
     shuffle(cast, elapsed * 3);
   }, ease.linear);
-  timeline.at(12, () => callouts.say('Ah, die Migros. Bananen kaufen? Später …', thoughts, 3, 0));
-  timeline.at(18, () => callouts.say('Oh … da will jemand über die Strasse.', thoughts, 2.2, 0));
+  timeline.at(12, () => callouts.say('Ah, d Migros. Banane poschte? Spöter …', thoughts, 3, 0));
+  timeline.at(18, () => callouts.say('Oh … da wott öpper über d Strass.', thoughts, 2.2, 0));
   rowdyRider(timeline, world, cyclists.rider, cast);
   chattersInTheWay(timeline, world, cyclists);
 
@@ -275,11 +275,11 @@ export function driveToCrossing(world: World, cast: CrossingCast, cyclists: Cycl
   return timeline;
 }
 
-export const CROSSING_QUESTION = 'Eine Grossmutter überquert die Strasse – im Schneckentempo. Was tust du?';
+export const CROSSING_QUESTION = 'Es Grosi gaht über d Strass – im Schnäggetempo. Was machsch?';
 export const CROSSING_OPTIONS: readonly ChoiceOption[] = [
-  { icon: '📯', label: 'Hupen' },
-  { icon: '👉', label: 'Mit dem Auto anstupsen' },
-  { icon: '🐌', label: 'Geduldig warten' },
+  { icon: '📯', label: 'Hupe' },
+  { icon: '👉', label: 'Mit em Auto ahstupse' },
+  { icon: '🐌', label: 'Gedultig warte' },
 ];
 
 /** While the viewer decides, grandma inches forward a few centimetres. */
@@ -330,7 +330,7 @@ function hornReaction(world: World, cast: CrossingCast): Timeline {
   }, ease.linear);
   turnGrandma(timeline, cast, 1.3, FACING_ACROSS, FACING_CAR);
   timeline.at(2.2, () => callouts.say('Saucheib!', grandma.head, 1.2));
-  timeline.at(3.4, () => callouts.say('Junger Mann! Ich bin zweiundneunzig!', grandma.head, 2.6));
+  timeline.at(3.4, () => callouts.say('Junge Maa! I bi zweienünzgi!', grandma.head, 2.6));
   timeline.tween(2.4, 2.6, (_progress, elapsed) => {
     grandma.arms[1].rotation.set(-2.8, 0, Math.sin(elapsed * 14) * 0.3);
   }, ease.linear);
@@ -376,7 +376,7 @@ function nudgeReaction(world: World, cast: CrossingCast): Timeline {
     });
   }
   timeline.at(3.1, () => callouts.say('Saucheib!', grandma.head, 1.2));
-  timeline.at(5.5, () => callouts.say('Also wirklich! Frechheit!', grandma.head, 2.5));
+  timeline.at(5.5, () => callouts.say('Also würkli! Frächheit!', grandma.head, 2.5));
   turnGrandma(timeline, cast, 7, FACING_CAR, FACING_ACROSS);
   driverOnly(timeline, world, 8.2, (elapsed) => {
     const sinceWhack = Math.min(...[4.2, 5.2].map((time) => (elapsed >= time ? elapsed - time : Number.POSITIVE_INFINITY)));
@@ -393,7 +393,7 @@ function waitReaction(world: World, cast: CrossingCast): Timeline {
   const snailStartZ = z - 1.6;
   snail.root.position.set(ZEBRA_X - 0.7, 0.02, snailStartZ);
   snail.root.visible = true;
-  timeline.at(0.5, () => callouts.say('Ich warte gern. 🙂', thoughts, 2.2, 0));
+  timeline.at(0.5, () => callouts.say('I warte gern. 🙂', thoughts, 2.2, 0));
   timeline.tween(0, 8, (_progress, elapsed) => {
     snail.root.position.z = snailStartZ + elapsed * 0.45;
     snail.stalks.forEach((stalk, index) => {
@@ -407,7 +407,7 @@ function waitReaction(world: World, cast: CrossingCast): Timeline {
   timeline.tween(4, 0.6, (progress) => {
     grandma.head.rotation.y = lerp(0, -0.8, progress);
   });
-  timeline.at(4.3, () => callouts.say('Hoppla – die Schnecke überholt mich!', grandma.head, 2.4));
+  timeline.at(4.3, () => callouts.say('Hoppla – d Schnägg überholt mi!', grandma.head, 2.4));
   timeline.tween(5.8, 0.4, (progress) => {
     grandma.head.rotation.y = lerp(-0.8, 0, progress);
   });
@@ -416,7 +416,7 @@ function waitReaction(world: World, cast: CrossingCast): Timeline {
     grandma.arms[1].rotation.set(-2.7, 0, Math.sin(elapsed * 10) * 0.35);
   }, ease.linear);
   timeline.at(6.8, () => {
-    callouts.say('Merci vielmal, junger Mann! 💐', grandma.head, 2.6);
+    callouts.say('Merci vilmal, junge Maa! 💐', grandma.head, 2.6);
     callouts.show('+1 KARMA', thoughts, 1.8, -0.3);
     sounds.ping(2800);
   });
@@ -506,8 +506,8 @@ export function driveToBananas(world: World, cast: CrossingCast, bananas: Banana
     placeCar(world, lerp(startDistance, STOPS.bananas, cruiseProgress(elapsed, BANANA_DRIVE_SECONDS, 2, 3)));
   }, ease.linear);
   const alarmTime = BANANA_DRIVE_START + BANANA_DRIVE_SECONDS;
-  timeline.at(alarmTime - 3.2, () => callouts.say('Was ist denn da passiert?!', thoughts, 2.5, 0));
-  timeline.at(alarmTime + 0.2, () => callouts.show('BANANEN-ALARM!', bananas.truck.root, 2, 3.2));
+  timeline.at(alarmTime - 3.2, () => callouts.say('Was isch dänn da passiert?!', thoughts, 2.5, 0));
+  timeline.at(alarmTime + 0.2, () => callouts.show('BANANE-ALARM!', bananas.truck.root, 2, 3.2));
   const sideTurnLength = STOPS.sideTurnEnd - STOPS.sideTurnStart;
   direct(timeline, world, [
     {
@@ -526,11 +526,11 @@ export function driveToBananas(world: World, cast: CrossingCast, bananas: Banana
   return timeline;
 }
 
-export const BANANA_QUESTION = 'Ein Lastwagen voller Bananen ist umgekippt! Was willst du machen?';
+export const BANANA_QUESTION = 'En Laschtwage volle Banane isch umkippt! Was wotsch mache?';
 export const BANANA_OPTIONS: readonly ChoiceOption[] = [
-  { icon: '🪂', label: 'Bananen einsammeln als Gleitschirm-Proviant für ein Jahr' },
-  { icon: '💛', label: 'Bananen einsammeln für Moana' },
-  { icon: '🍞', label: 'Bananen einsammeln für Bananenbrot' },
+  { icon: '🪂', label: 'Banane iisammle als Gleitschirm-Proviant für es Jahr' },
+  { icon: '💛', label: 'Banane iisammle für d Moana' },
+  { icon: '🍞', label: 'Banane iisammle für Bananebrot' },
 ];
 
 function wideBananaShot(timeline: Timeline, world: World, duration: number): void {
@@ -552,14 +552,14 @@ function paraglidingSnackReaction(world: World, cast: BananaCast): Timeline {
     world.city.sideStreet.add(sparkle);
     return sparkle;
   });
-  timeline.at(0.5, () => alainSays(world, 'Gleitschirm-Proviant für ein ganzes Jahr! 🪂', 3.5));
+  timeline.at(0.5, () => alainSays(world, 'Gleitschirm-Proviant für es ganzes Jahr! 🪂', 3.5));
   timeline.at(2.4, () => world.sounds.ping(2600));
   timeline.tween(2.4, 1, (progress) => {
     sparkles.forEach((sparkle, index) => {
       sparkle.scale.setScalar(Math.max(0, Math.sin((progress * 1.5 - index * 0.12) * Math.PI)) * 0.5);
     });
   }, ease.linear);
-  timeline.at(4.3, () => world.callouts.say('Nur zu, bedien dich!', cast.driver.head, 2.2));
+  timeline.at(4.3, () => world.callouts.say('Nur zue, bedien di!', cast.driver.head, 2.2));
   wideBananaShot(timeline, world, 7);
   return timeline;
 }
@@ -567,8 +567,8 @@ function paraglidingSnackReaction(world: World, cast: BananaCast): Timeline {
 function forMoanaReaction(world: World, cast: BananaCast): Timeline {
   const timeline = new Timeline();
   const { driver } = cast;
-  timeline.at(0.5, () => alainSays(world, 'Die bringe ich Moana – sie liebt Bananen! 💛', 3.5));
-  timeline.at(4.2, () => world.callouts.say('Wer ist Moana?', driver.head, 2.4));
+  timeline.at(0.5, () => alainSays(world, 'Die bring i de Moana – sie liebt Banane! 💛', 3.5));
+  timeline.at(4.2, () => world.callouts.say('Wär isch d Moana?', driver.head, 2.4));
   timeline.tween(4.2, 0.5, (progress) => {
     driver.head.rotation.z = lerp(0, 0.35, progress);
   });
@@ -584,7 +584,7 @@ function bananaBreadReaction(world: World, cast: BananaCast): Timeline {
   const timeline = new Timeline();
   const { callouts, sounds, b05 } = world;
   const { driver, peel } = cast;
-  timeline.at(0.5, () => alainSays(world, 'Bananenbrot! Aber zuerst eine probieren … 😋', 2.4));
+  timeline.at(0.5, () => alainSays(world, 'Bananebrot! Aber zersch eini probiere … 😋', 2.4));
   for (const munchTime of [1.6, 2.4]) {
     timeline.at(munchTime, () => {
       sounds.munch();
@@ -639,7 +639,7 @@ function bananaBreadReaction(world: World, cast: BananaCast): Timeline {
     driver.dizzyStars.rotation.y = elapsed * 6;
     driver.arms[1].rotation.set(0, 0, 0);
   }, ease.linear);
-  timeline.at(7, () => alainSays(world, 'Ups … Entschuldigung!', 2));
+  timeline.at(7, () => alainSays(world, 'Ups … Exgüsi!', 2));
   wideBananaShot(timeline, world, 9.1);
   return timeline;
 }
@@ -770,7 +770,7 @@ export function collectBananas(world: World, cast: BananaCast): Timeline {
     sounds.ping(2200);
     callouts.show('FERTIG!', b05.root, 1.5, 2.4);
   });
-  timeline.at(finished + 0.6, () => callouts.say('Merci vielmal! Gute Fahrt!', driver.head, 2.6));
+  timeline.at(finished + 0.6, () => callouts.say('Merci vilmal! Gueti Fahrt!', driver.head, 2.6));
 
   const wideStart = sideStreetToWorld(new Vector3(33.5, 2.6, 9.4));
   const wideEnd = sideStreetToWorld(new Vector3(34.5, 3.0, 8.4));

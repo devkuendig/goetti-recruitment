@@ -343,7 +343,7 @@ const SLOW_MOTION_END = CATCH_TIME;
 const GET_UP_START = 26.9;
 const GET_UP_END = 28;
 // The toddler's dialogue: eyes sparkle and the mouth laughs the moment Alain picks up the pacifier,
-// "Reflexe wie ein Götti!" right after "GERETTET!", then "Den will ich als Götti haben!".
+// "Reflex wie en Götti!" right after "GRETTET!", then "Dä wott i als Götti!".
 const REFLEX_AT = CATCH_TIME + 0.5;
 const REFLEX_SECONDS = 2.2;
 const WISH_AT = REFLEX_AT + REFLEX_SECONDS + 0.2;
@@ -358,7 +358,7 @@ const FIST_PUMP_PERIOD = 0.55;
  * Loaded with bananas, Alain parks in the side street — and a cloud of fruit flies hatches from
  * the cargo. He flees the car, flailing, just as a family comes along the sidewalk. The toddler
  * in the pram giggles, the pacifier drops and rolls towards the drain; Alain catches it
- * in a slow-motion dive. "Reflexe wie ein Götti!" — big eyes: "Den will ich als Götti haben!"
+ * in a slow-motion dive. "Reflex wie en Götti!" — big eyes: "Dä wott i als Götti!"
  */
 export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   const timeline = new Timeline();
@@ -371,12 +371,12 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   timeline.tween(0, 7, (_progress, elapsed) => {
     placeCar(world, lerp(startDistance, STOPS.parking, cruiseProgress(elapsed, 7, 2, 2.5)));
   }, ease.linear);
-  timeline.at(1.2, () => callouts.say('Uff … so viele Bananen.', thoughts, 2, 0));
+  timeline.at(1.2, () => callouts.say('Uff … so vill Banane.', thoughts, 2, 0));
 
   // ── Fruit flies hatch in the cockpit … ──────────────────────────────────────
   timeline.at(3.6, () => sounds.buzz(9));
-  timeline.at(3.8, () => callouts.say('Moment … was summt denn da?', thoughts, 2, 0));
-  timeline.at(5.9, () => callouts.show('FRUCHTFLIEGEN!!! 😱', thoughts, 1.8, -0.1));
+  timeline.at(3.8, () => callouts.say('Momänt … was summet dänn da?', thoughts, 2, 0));
+  timeline.at(5.9, () => callouts.show('FRUCHTFLIEGE!!! 😱', thoughts, 1.8, -0.1));
   timeline.tween(3.6, 9.4, (_progress, elapsed) => {
     // From a scout to a cloud, then they lose him once he's out on the sidewalk.
     const growing = MathUtils.clamp(Math.round(2 + (elapsed / 2.6) * COCKPIT_FLY_COUNT), 0, COCKPIT_FLY_COUNT);
@@ -399,7 +399,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   timeline.at(7.6, () => callouts.show('BZZZZ!', world.b05.root, 1.4, 2.2));
 
   // ── He flees: door open, round the bonnet, flailing ─────────────────────────
-  timeline.at(10, () => callouts.say('Raus hier! Weg, weg, weg!', thoughts, 2.2, 0));
+  timeline.at(10, () => callouts.say('Use da! Wäg, wäg, wäg!', thoughts, 2.2, 0));
   for (let stepTime = 9.6; stepTime < 12.6; stepTime += 0.3) {
     timeline.at(stepTime, () => sounds.footstep());
   }
@@ -409,7 +409,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   timeline.tween(13.5, 0.3, (progress) => {
     hands.keyHand.rotation.set(0.3, -0.25, 0.1 * progress);
   });
-  timeline.at(13.2, () => callouts.say('Puh … entkommen.', thoughts, 1.2, 0));
+  timeline.at(13.2, () => callouts.say('Puh … entwütscht.', thoughts, 1.2, 0));
 
   // ── The family strolls along the sidewalk; Moana munches ────────────────────
   timeline.tween(FAMILY_WALK_START, FAMILY_WALK_SECONDS, (_progress, elapsed) => {
@@ -427,9 +427,9 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   moanaBite(timeline, world, cast, 15);
   moanaBite(timeline, world, cast, 17.2);
 
-  // ── Alain spots them: "Hallo Familie Kündig!" — and everyone waves ─────────
+  // ── Alain spots them: "Hoi Familie Kündig!" — and everyone waves ─────────
   // After the walk tween, so the waving arms win over the walk cycle.
-  timeline.at(GREETING_START, () => callouts.say('Hallo Familie Kündig! 👋', thoughts, 2.4, 0));
+  timeline.at(GREETING_START, () => callouts.say('Hoi Familie Kündig! 👋', thoughts, 2.4, 0));
   timeline.tween(GREETING_START, GREETING_SECONDS, (progress, elapsed) => {
     const raised = Math.sin(progress * Math.PI);
     hands.keyHand.position.y = lerp(-0.34, -0.1, raised);
@@ -480,7 +480,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     kid.pacifier.position.y = lerp(SIDEWALK_TOP + 0.03, CATCH_SPOT.y, curbDrop);
     kid.pacifier.rotation.set(0, 0, progress * 14);
   }, ease.linear);
-  timeline.at(22.1, () => callouts.say('Oh nein – der Nuggi!', cast.mama.head, 1.8, 0.45));
+  timeline.at(22.1, () => callouts.say('Oh nei – de Nuggi!', cast.mama.head, 1.8, 0.45));
   // … and in slow motion teeters the last few centimetres towards the grate.
   timeline.tween(DIVE_START, CATCH_TIME - DIVE_START, (progress, elapsed) => {
     kid.pacifier.position.lerpVectors(PRE_CATCH_SPOT, CATCH_SPOT, progress);
@@ -493,7 +493,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     sounds.slowMotion(SLOW_MOTION_END - DIVE_START);
     callouts.show('HECHTSPRUNG!', thoughts, 1.4, -0.1);
   });
-  timeline.at(DIVE_START + 0.7, () => callouts.show('N E E E I I I N !', thoughts, 2, 0.15));
+  timeline.at(DIVE_START + 0.7, () => callouts.show('N E E E I I I I !', thoughts, 2, 0.15));
   for (const beatTime of [DIVE_START + 0.9, DIVE_START + 1.9]) {
     timeline.at(beatTime, () => sounds.heartbeat());
   }
@@ -514,7 +514,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     caughtFrom.copy(kid.pacifier.position);
     sounds.ping(3000);
     sounds.whoosh();
-    callouts.show('GERETTET!', thoughts, 1.6, -0.3);
+    callouts.show('GRETTET!', thoughts, 1.6, -0.3);
   });
   timeline.at(CATCH_TIME + 0.25, () => callouts.show('RUTSCH!', thoughts, 0.9, -0.5));
   timeline.tween(CATCH_TIME + 0.05, 1.2, (progress) => {
@@ -522,7 +522,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     kid.pacifier.rotation.set(0.3, 0, 0);
   }, ease.out);
 
-  // ── Pacifier saved: eyes go wide and sparkle, a big laugh — "Reflexe wie ein Götti!" ──
+  // ── Pacifier saved: eyes go wide and sparkle, a big laugh — "Reflex wie en Götti!" ──
   timeline.tween(CATCH_TIME, 0.3, (progress) => {
     kid.eyes.forEach((eye) => eye.scale.setScalar(lerp(1, 1.45, progress)));
     kid.brows.forEach((brow) => {
@@ -538,13 +538,13 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     const sparkle = (index: number) => (0.5 + 0.5 * Math.max(0, Math.sin(elapsed * 4 + index * 1.4)) ** 4) * 0.3;
     twinkleEyes(cast, [sparkle(0), sparkle(1)]);
   }, ease.linear);
-  timeline.at(REFLEX_AT, () => callouts.say('Reflexe wie ein Götti!', kid.head, REFLEX_SECONDS, 0.45));
+  timeline.at(REFLEX_AT, () => callouts.say('Reflex wie en Götti!', kid.head, REFLEX_SECONDS, 0.45));
   timeline.tween(WISH_AT - 0.4, 0.4, (progress) => {
     kid.wavingArm.rotation.set(lerp(0.9, 1.3, progress), 0, lerp(0, 0.8, progress));
   });
   timeline.at(WISH_AT, () => {
     sounds.squeal();
-    callouts.say('Den will ich als Götti haben!', kid.head, 5, 0.45);
+    callouts.say('Dä wott i als Götti!', kid.head, 5, 0.45);
   });
   timeline.tween(WISH_AT, 1.6, (_progress, elapsed) => {
     kid.whistleMouth.scale.set(KID_LAUGH.x, KID_LAUGH.y + Math.sin(elapsed * 14) * 0.2, KID_LAUGH.z);
@@ -694,11 +694,11 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   return timeline;
 }
 
-export const GOETTI_QUESTION = 'Willst du Götti werden?';
+export const GOETTI_QUESTION = 'Wotsch Götti wärde?';
 export const GOETTI_OPTIONS: readonly ChoiceOption[] = [
   { icon: '💛', label: 'Ja' },
-  { icon: '🙅', label: 'Nein' },
-  { icon: '🤔', label: 'Vielleicht' },
+  { icon: '🙅', label: 'Nei' },
+  { icon: '🤔', label: 'Vilicht' },
 ];
 /** Indices into `GOETTI_OPTIONS`. */
 export const GOETTI_ANSWER = { yes: 0, no: 1, maybe: 2 } as const;
@@ -779,7 +779,7 @@ export function yesEnding(world: World, cast: FamilyCast): Timeline {
     sounds.cameraShutter();
     callouts.show('KLICK!', papa.head, 1, 0.4);
   });
-  timeline.at(5.2, () => callouts.say('Wir freuen uns riesig! 💛', mama.head, 2.6, 0.45));
+  timeline.at(5.2, () => callouts.say('Mir fröied eus riesig! 💛', mama.head, 2.6, 0.45));
 
   // ── Fist pump, all together — Alain's fist rises into view too ─────────────
   const pumpStart = FIST_PUMP_START;
@@ -815,7 +815,7 @@ export function maybeEnding(world: World, cast: FamilyCast): Timeline {
   timeline.tween(0.3, 2.2, (progress) => {
     kid.eyes.forEach((eye) => eye.scale.set(wideEyes, lerp(wideEyes, 0.35, progress), wideEyes));
   }, ease.inOut);
-  timeline.at(2.7, () => callouts.say('Hmm. Ich frag morgen nochmal. 😎', kid.head, 3.5, 0.45));
+  timeline.at(2.7, () => callouts.say('Hmm. I frög morn nomal. 😎', kid.head, 3.5, 0.45));
   timeline.tween(3.2, 1.2, (progress) => {
     papa.arms.forEach((arm, index) => {
       arm.rotation.set(-0.4, 0, (index === 0 ? 1 : -1) * Math.sin(progress * Math.PI) * 0.7);
@@ -852,13 +852,13 @@ export function noReaction(world: World, cast: FamilyCast): Timeline {
       arm.rotation.set(lerp(-1.2, -2.7, progress), 0, (index === 0 ? -1 : 1) * progress * 0.9);
     });
   });
-  timeline.at(3.6, () => callouts.say('Er meint es nicht so … oder?', mama.head, 2.6, 0.45));
+  timeline.at(3.6, () => callouts.say('Er meints nöd so … oder?', mama.head, 2.6, 0.45));
   holdFamilyShot(timeline, world, cast, 6.3);
   return timeline;
 }
 
 export const SURE_QUESTION = 'Sicher? 🥺';
-export const SURE_OPTIONS: readonly ChoiceOption[] = [{ icon: '🤔', label: 'Nochmal überlegen' }];
+export const SURE_OPTIONS: readonly ChoiceOption[] = [{ icon: '🤔', label: 'Nomal überlegge' }];
 
 export function cryingIdle(world: World, cast: FamilyCast): Timeline {
   const timeline = new Timeline();
