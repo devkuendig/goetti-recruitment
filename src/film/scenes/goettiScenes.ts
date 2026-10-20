@@ -7,6 +7,7 @@ import {
   createPasserby,
   createPram,
   createToddler,
+  KID_MOUTH_OPEN,
   turnHeadTowards,
   walkCycle,
   type Kid,
@@ -265,16 +266,8 @@ function placeFamily(cast: FamilyCast, pramX: number, walked: number): void {
   });
 }
 
-const KID_MOUTH_CLOSED = new Vector3(1.4, 0.4, 0.6);
-const KID_MOUTH_OPEN = new Vector3(1.2, 1.3, 0.6);
-/** Sparkle size from which the mouth is fully open. */
-const SPARKLE_MOUTH_OPEN = 0.15;
-
-/** Sets the toddler's eye sparkles; while they shine, the mouth opens in wonder. */
 function twinkleEyes(cast: FamilyCast, scales: readonly [number, number]): void {
   cast.eyeSparkles.forEach((sparkle, index) => sparkle.scale.setScalar(scales[index]));
-  const openness = MathUtils.clamp(Math.max(...scales) / SPARKLE_MOUTH_OPEN, 0, 1);
-  cast.kid.whistleMouth.scale.lerpVectors(KID_MOUTH_CLOSED, KID_MOUTH_OPEN, openness);
 }
 
 function everyoneLooksAt(cast: FamilyCast, worldTarget: Vector3): void {
@@ -348,8 +341,14 @@ const DIVE_START = 23.4;
 const CATCH_TIME = 26.3;
 const SLOW_MOTION_END = CATCH_TIME;
 const GET_UP_START = 26.9;
-const CLOSE_UP_START = 28;
-const CLOSE_UP_END = 34.3;
+const GET_UP_END = 28;
+// The toddler's dialogue: eyes sparkle and the mouth laughs the moment Alain picks up the pacifier,
+// "Reflexe wie ein Götti!" right after "GERETTET!", then "Den will ich als Götti haben!".
+const REFLEX_AT = CATCH_TIME + 0.5;
+const REFLEX_SECONDS = 2.2;
+const WISH_AT = REFLEX_AT + REFLEX_SECONDS + 0.2;
+const DIALOGUE_END = WISH_AT + 2;
+const KID_LAUGH = new Vector3(1.9, 1.5, 0.7);
 // "Ja" ending: three fist pumps together after the family photo.
 const FIST_PUMP_START = 8;
 const FIST_PUMPS = 3;
@@ -523,45 +522,46 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
     kid.pacifier.rotation.set(0.3, 0, 0);
   }, ease.out);
 
-  // The held pacifier sits on the camera: hidden in the close-up, back in hand afterwards.
-  timeline.at(CLOSE_UP_START, () => {
-    kid.pacifier.visible = false;
-  });
-  timeline.at(CLOSE_UP_END, () => {
-    kid.pacifier.visible = true;
-  });
-
-  // ── Eyes go wide: "Reflexe wie ein Götti!" ──────────────────────────────────
-  const reveal = CLOSE_UP_START;
-  timeline.tween(reveal, 0.6, (progress) => {
-    turnHeadTowards(kid.head, FAMILY_WORLD_YAW, ALAIN_SPOT_WORLD, 1.0);
-    kid.head.rotation.y *= progress;
-  });
-  timeline.tween(reveal + 0.6, 0.5, (progress) => {
+  // ── Pacifier saved: eyes go wide and sparkle, a big laugh — "Reflexe wie ein Götti!" ──
+  timeline.tween(CATCH_TIME, 0.3, (progress) => {
     kid.eyes.forEach((eye) => eye.scale.setScalar(lerp(1, 1.45, progress)));
     kid.brows.forEach((brow) => {
       brow.position.y = lerp(0.115, 0.15, progress);
     });
+    kid.whistleMouth.scale.lerpVectors(KID_MOUTH_OPEN, KID_LAUGH, progress);
   }, ease.out);
-  for (const pingTime of [reveal + 1.3, reveal + 1.6]) {
+  for (const pingTime of [CATCH_TIME + 0.2, CATCH_TIME + 0.5]) {
     timeline.at(pingTime, () => sounds.ping(3400));
   }
-  timeline.tween(reveal + 1.3, 0.8, (progress) => {
-    const sparkle = (index: number) => Math.max(0, Math.sin((progress * 1.4 - index * 0.2) * Math.PI)) * 0.3;
+  // They keep twinkling through the whole dialogue.
+  timeline.tween(CATCH_TIME, DIALOGUE_END - CATCH_TIME, (_progress, elapsed) => {
+    const sparkle = (index: number) => (0.5 + 0.5 * Math.max(0, Math.sin(elapsed * 4 + index * 1.4)) ** 4) * 0.3;
     twinkleEyes(cast, [sparkle(0), sparkle(1)]);
   }, ease.linear);
-  timeline.at(reveal + 1.8, () => callouts.say('Reflexe wie ein Götti!', kid.head, 2.2, 0.45));
-  timeline.tween(reveal + 3.9, 0.4, (progress) => {
+  timeline.at(REFLEX_AT, () => callouts.say('Reflexe wie ein Götti!', kid.head, REFLEX_SECONDS, 0.45));
+  timeline.tween(WISH_AT - 0.4, 0.4, (progress) => {
     kid.wavingArm.rotation.set(lerp(0.9, 1.3, progress), 0, lerp(0, 0.8, progress));
   });
-  timeline.at(reveal + 4.3, () => {
+  timeline.at(WISH_AT, () => {
     sounds.squeal();
     callouts.say('Den will ich als Götti haben!', kid.head, 5, 0.45);
   });
-  timeline.tween(reveal + 4.3, 1.6, (_progress, elapsed) => {
-    kid.whistleMouth.scale.set(1.2, 1.2 + Math.sin(elapsed * 14) * 0.2, 0.6);
+  timeline.tween(WISH_AT, 1.6, (_progress, elapsed) => {
+    kid.whistleMouth.scale.set(KID_LAUGH.x, KID_LAUGH.y + Math.sin(elapsed * 14) * 0.2, KID_LAUGH.z);
   }, ease.linear);
-  timeline.tween(CLOSE_UP_END + 0.1, 0.5, (progress) => {
+
+  // From the moment it drops, the toddler never takes its eyes off the pacifier.
+  const pacifierSeen = new Vector3();
+  const kidHeadSeen = new Vector3();
+  timeline.tween(21.2, DIALOGUE_END + 2 - 21.2, () => {
+    kid.pacifier.getWorldPosition(pacifierSeen);
+    turnHeadTowards(kid.head, FAMILY_WORLD_YAW, pacifierSeen, 1.0);
+    // Nod down to the gutter, up to Alain's hand (positive x tilts the face down).
+    kid.head.getWorldPosition(kidHeadSeen);
+    const distance = Math.hypot(pacifierSeen.x - kidHeadSeen.x, pacifierSeen.z - kidHeadSeen.z);
+    kid.head.rotation.x = MathUtils.clamp(Math.atan2(kidHeadSeen.y - pacifierSeen.y, distance), -0.4, 0.6);
+  }, ease.linear);
+  timeline.tween(DIALOGUE_END + 0.1, 0.5, (progress) => {
     everyoneLooksAt(cast, ALAIN_SPOT_WORLD);
     [cast.papa, cast.mama, cast.moana].forEach((person) => {
       person.head.rotation.y *= progress;
@@ -574,6 +574,7 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
   const local = new Vector3();
   const kidHead = new Vector3();
   const pacifierWorld = new Vector3();
+  const catchWorld = new Vector3();
   const pramTarget = () => sideStreetToWorld(local.copy(cast.pram.root.position).setY(1.1), target);
   direct(timeline, world, [
     {
@@ -666,33 +667,27 @@ export function parkAndMeetFamily(world: World, cast: FamilyCast): Timeline {
         const shake = Math.sin(elapsed * 70) * 0.03 * (1 - skid);
         local.lerpVectors(POV_DIVE_EYE, SKID_EYE, skid);
         local.y += shake;
-        aim(world, sideStreetToWorld(local, eye), sideStreetToWorld(CATCH_SPOT, target));
+        sideStreetToWorld(local, eye);
+        // Straight from the pacifier up to the pram: the toddler's reaction must be in shot.
+        aim(world, eye, sideStreetToWorld(CATCH_SPOT, catchWorld).lerp(pramTarget(), skid));
         world.stage.camera.rotateZ(shake * 3);
       },
     },
     {
-      until: CLOSE_UP_START,
+      until: GET_UP_END,
       view: 'walker',
       fov: POV_FOV,
       frame: (elapsed) => {
-        const getUp = ease.inOut(MathUtils.clamp((elapsed - GET_UP_START) / (CLOSE_UP_START - GET_UP_START), 0, 1));
+        const getUp = ease.inOut(MathUtils.clamp((elapsed - GET_UP_START) / (GET_UP_END - GET_UP_START), 0, 1));
         sideStreetToWorld(local.lerpVectors(SKID_EYE, ALAIN_SPOT, getUp), eye);
         aim(world, eye, pramTarget());
       },
     },
     {
-      until: CLOSE_UP_END,
-      view: 'free',
-      fov: 34,
-      frame: () => {
-        kid.head.getWorldPosition(kidHead);
-        aim(world, sideStreetToWorld(local.set(ALAIN_SPOT.x + 0.9, 1.2, ALAIN_SPOT.z + 0.35), eye), kidHead);
-      },
-    },
-    {
-      until: CLOSE_UP_END + 2,
+      // Back on his feet, he watches the toddler from where he stands — no close-up.
+      until: DIALOGUE_END + 2,
       view: 'walker',
-      fov: 50,
+      fov: (elapsed) => lerp(POV_FOV, 50, ease.inOut(MathUtils.clamp(elapsed - GET_UP_END, 0, 1))),
       frame: () => aim(world, ALAIN_SPOT_WORLD, pramTarget().setY(1.0)),
     },
   ]);
@@ -882,7 +877,7 @@ export function calmDown(world: World, cast: FamilyCast): Timeline {
     tears.forEach((tear) => {
       tear.visible = false;
     });
-    kid.whistleMouth.scale.copy(KID_MOUTH_CLOSED);
+    kid.whistleMouth.scale.copy(KID_MOUTH_OPEN);
     world.callouts.show('SCHNIEF.', kid.head, 1.4, 0.5);
   });
   timeline.tween(0.4, 0.5, (progress) => {

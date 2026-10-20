@@ -23,6 +23,8 @@ export interface Kid {
 
 const KID_HEAD_RADIUS = 0.21;
 export const KID_PACIFIER_IN_MOUTH = new Vector3(0, -0.1, 0.24);
+/** The toddler's mouth is always open in wonder (behind the pacifier while it's in). */
+export const KID_MOUTH_OPEN = new Vector3(1.2, 1.3, 0.6);
 
 export function createKid(): Kid {
   const root = new Group();
@@ -110,7 +112,7 @@ export function createKid(): Kid {
 
   const whistleMouth = sphere(0.025, toon(0x9b2d3a));
   whistleMouth.position.set(0, -0.1, 0.195);
-  whistleMouth.scale.set(1.4, 0.4, 0.6);
+  whistleMouth.scale.copy(KID_MOUTH_OPEN);
   head.add(whistleMouth);
 
   const pacifier = createPacifier(0x22c7e8, 1.1);
